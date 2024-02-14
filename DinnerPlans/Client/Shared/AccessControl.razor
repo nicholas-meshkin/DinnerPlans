@@ -8,7 +8,7 @@
 
 <AuthorizeView>
     <Authorized>
-        Hello, @context.User.Identity.Name!
+          <MudText>Hello, @context.User.Identity.Name!  </MudText>
         <a href="#" @onclick="BeginSignOut">Log out</a>
     </Authorized>
     <NotAuthorized>

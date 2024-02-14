@@ -1,9 +1,57 @@
 ﻿@page "/"
-
+@attribute [Authorize]
 <PageTitle>Index</PageTitle>
+   
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@inject IHttpClientFactory ClientFactory
+@inject IAuthenticationService AuthenticationService
+<MudText>Hello, doofus!</MudText>
+<MudText>Put something here at some point.</MudText>
+    
+    
+@code {
+    private string Username = "Anonymous User";
+    [CascadingParameter]
+    private Task<AuthenticationState>? authenticationState { get; set; }
 
-<h1>Hello, world!</h1>
+    private UserDto user;
 
-Welcome to your new app.
+    protected override async Task OnInitializedAsync()
+    {
+        if (authenticationState is not null)
+        {
+            var state = await authenticationState;
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+            Username = state?.User?.Identity?.Name ?? string.Empty;
+
+            //this is auth0 user id, TODO figure out better way to integrate, this is quick test
+            //TODO figure out why this is hitting twice??
+            var aoId = state?.User.Claims
+                  .Where(c => c.Type.Equals("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"))
+                  .Select(c => c.Value)
+                  .FirstOrDefault() ?? string.Empty;
+            if (!string.IsNullOrEmpty(aoId)) aoId = aoId.Substring(6);
+            var name = state?.User.Claims
+                  .Where(c => c.Type.Equals("name"))
+                  .Select(c => c.Value)
+                  .FirstOrDefault() ?? string.Empty;
+
+            var clientlocal = ClientFactory.CreateClient("LocalApi");
+            var resp = await clientlocal.GetStringAsync($"api/Main/user/{aoId}");
+            if (string.IsNullOrEmpty(resp))
+            {
+                user = new UserDto { AoId = aoId, Name = name };
+                var json = JsonConvert.SerializeObject(user);
+                var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+                var resp2 = await clientlocal.PostAsync("api/Main/user/create", stringContent);
+                resp = (await resp2.Content.ReadAsStringAsync());
+            }
+            user = JsonConvert.DeserializeObject<UserDto>(resp);
+            if(user !=null) AuthenticationService.SetUser(user);
+        }
+        await base.OnInitializedAsync();
+    }
+}
+

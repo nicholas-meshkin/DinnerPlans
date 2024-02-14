@@ -1,0 +1,241 @@
+﻿@page "/recipeview/{id:int}"
+@attribute [Authorize]
+
+<PageTitle>Recipes</PageTitle>
+
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@using System.Net.Http.Headers;
+@inject IHttpClientFactory ClientFactory
+@inject IShoppingListService ShoppingListService
+@inject IAuthenticationService AuthenticationService
+@inject INavigationService NavigationService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+@if (recipe == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    
+    <MudPaper Class="d-flex justify-space-between align-center flex-grow-1 gap-4 secondaryheader" Elevation="0">
+        <MudLink Class="object-left" OnClick="Previous" Disabled="@(recipe.PreviousId == 0)"
+             Href="@($"recipeview/{recipe.PreviousId}")">
+            Previous
+        </MudLink>
+        <MudRating Size="Size.Large" SelectedValue="@Rating" SelectedValueChanged="UpdateRating">
+
+        </MudRating>
+        <MudLink Class="object-right" OnClick="Next" Disabled="@(recipe.NextId == 0)"
+             Href="@($"recipeview/{recipe.NextId}")">
+            Next
+        </MudLink>
+    </MudPaper>
+    <h1 class="viewheader">@recipe.Name</h1>
+    <MudButton Disabled=canEdit @onclick="()=>CopyRecipeForUser()">Add to My Recipes</MudButton>
+    <p hidden="@(!recipe.NeedsEdit)" style="background-color:tomato;" >&emsp;RECIPE NEEDS EDITING</p>
+    <MudPaper Class="d-flex justify-space-around align-center flex-grow-1 gap-4 secondaryheader1" Elevation="0">
+        <MudSwitch Class="object-left" @bind-Checked:get="@MetricPreferred" @bind-Checked:set="ToggleMetric" Label="Metric" Color="Color.Primary" />
+        <MudStack Class="relative" AlignItems="AlignItems.Center" Row="true">
+                <MudNumericField Class="flex-grow-0 servingsinput" @bind-Value="Servings" />
+                <MudButton Class="inline-block" @onclick="ChangeServings" Variant="Variant.Filled" Color="Color.Primary">Change Servings</MudButton>
+            </MudStack>
+        <MudButton @onclick="()=>AddToShoppingList(Id,recipe.Name,Servings)">Add to Shopping List</MudButton>
+        <MudButton Disabled=!canEdit Class="inline-block" @onclick="ChangeEditFlag" Variant="Variant.Filled" Color="Color.Secondary">@EditButtonText</MudButton>
+        <MudLink Disabled=!canEdit Class="object-right" Href="@($"recipeview/{Id}/edit")">
+            Edit Recipe
+        </MudLink>
+    </MudPaper>
+    
+   @* <MudPaper Class="d-inline-block">
+        <MudSwitch Class="inline-block" @bind-Checked:get="@MetricPreferred" @bind-Checked:set="ToggleMetric" Label="Metric" Color="Color.Primary" />
+        <MudNumericField Class="servingsinput" @bind-Value="Servings" />
+        <MudButton Class="inline-block" @onclick="ChangeServings" Variant="Variant.Filled" Color="Color.Primary">Change Servings</MudButton>
+        <MudButton @onclick="()=>AddToShoppingList(Id,recipe.Name,Servings)">Add to List</MudButton>
+        <MudButton Class="inline-block" @onclick="ChangeEditFlag" Variant="Variant.Filled" Color="Color.Secondary">@EditButtonText</MudButton>
+        <MudLink Class="inline-block" Href="@($"recipeview/{Id}/edit")">
+            Edit Recipe
+        </MudLink>
+
+    </MudPaper>*@
+
+   
+
+    <MudTable Class="mb-16" Items="@recipe.Ingredients">
+        <HeaderContent>
+            <MudTh>Amount</MudTh>
+            <MudTh>Item</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.DisplayAmount </MudTd>
+            <MudTd>@context.Item</MudTd>
+        </RowTemplate>
+    </MudTable>
+
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="Instructions">
+            <MudTable Items="@recipe.Instructions">
+                <RowTemplate>
+                    <MudTd Class="instructiontext">@context.Instruction</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+        <MudTabPanel Text="Comments">
+            <MudButton @onclick="()=>CommentDialog(new RecipeCommentDto{CommentId=0, UserId = userId, RecipeId = Id})">Add Comment</MudButton>
+            <MudTable Items="@recipe.Comments">
+                <RowTemplate>
+                    <MudTd>@context.Updated.Value.ToShortDateString()</MudTd>
+                    <MudTd>@context.UserName</MudTd>
+                    <MudTd>@context.Comment</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+
+   
+}
+
+@code {
+    private RecipeViewDto? recipe;
+
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public int Servings { get; set; } = 2;
+
+    [Parameter]
+    public int Rating { get; set; } = 0;
+
+    [Parameter]
+    public bool MetricPreferred { get; set; } = false;
+
+    [Parameter]
+    public bool NeedsEdit { get; set; }
+
+    [Parameter]
+    public string EditButtonText { get; set; } = "Flag Recipe for Edit";
+
+    private int userId;
+
+    private bool canEdit = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userId = AuthenticationService.GetUserId() ?? 0;
+
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/defServ/{Id}");
+        Servings = JsonConvert.DeserializeObject<int>(resp);
+
+        await RefreshPage();
+    }
+
+    private async Task ToggleMetric(bool value)
+    {
+        MetricPreferred = value;
+        await RefreshPage();
+    }
+
+    private async Task ChangeServings()
+    {
+        await RefreshPage();
+    }
+    private async Task ChangeEditFlag()
+    {
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/flag/{Id}");
+        if (JsonConvert.DeserializeObject<bool>(resp))
+            await RefreshPage();
+    }
+
+    private async Task CommentDialog(RecipeCommentDto dto)
+    {
+        var parameters = new DialogParameters<CommentDialog> { { x => x.CommentDto, dto } };
+        var options = new DialogOptions { CloseOnEscapeKey = true };
+
+        var dialog = await DialogService.ShowAsync<CommentDialog>("Add Comment", parameters, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+            await UpdateComment(dto);
+    }
+
+    private async Task UpdateComment(RecipeCommentDto dto)
+    {
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var json = JsonConvert.SerializeObject(dto);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        clientlocal.DefaultRequestHeaders.Accept.Add(
+                   new MediaTypeWithQualityHeaderValue("application/json"));
+        var resp = await clientlocal.PostAsync($"api/Main/recipes/comment/update", stringContent);
+
+        //TODO might not want to refresh the whole page...
+        if (resp.IsSuccessStatusCode)
+            await RefreshPage();
+    }
+
+    private async Task UpdateRating(int value)
+    {
+        Rating = value;
+        /*TODO change how users work*/
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/rating/{Id}/{Rating}/{userId}");
+        if (JsonConvert.DeserializeObject<bool>(resp))
+            await RefreshPage();
+    }
+
+    private async Task AddToShoppingList(int recipeId, string name, int servings)
+    {
+        ShoppingListService.AddToList(recipeId, name, servings);
+
+    }
+
+    private async Task Next()
+    {
+        Id = recipe.NextId;
+        await RefreshPage();
+    }
+
+    private async Task Previous()
+    {
+        Id = recipe.PreviousId;
+        await RefreshPage();
+    }
+
+    private async Task CopyRecipeForUser()
+    {
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/copy/{userId}/{Id}");
+        if (JsonConvert.DeserializeObject<bool>(resp))
+        {
+            Snackbar.Clear();
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+            Snackbar.Add("Recipe Copied!", Severity.Normal);
+        }
+        else
+        {
+            Snackbar.Clear();
+            Snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+            Snackbar.Add("There was an error processing your request.", Severity.Error);
+        }
+    }
+
+    private async Task RefreshPage()
+    {
+        /*TODO change how users work*/
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/{Id}/{Servings}/{MetricPreferred}/{userId}");
+        recipe = JsonConvert.DeserializeObject<RecipeViewDto>(resp);
+
+        recipe.NextId = NavigationService.Next(Id);
+        recipe.PreviousId = NavigationService.Previous(Id);
+        canEdit = userId == recipe.CreatedById;
+        NeedsEdit = recipe.NeedsEdit;
+        EditButtonText = recipe.NeedsEdit ? "Unflag Recipe for Edit" : "Flag Recipe for Edit";
+        Rating = recipe.Rating ?? 0;
+    }
+}

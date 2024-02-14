@@ -1,0 +1,134 @@
+﻿@page "/shoppinglist"
+@attribute [Authorize]
+
+<PageTitle>Shopping List</PageTitle>
+
+@using System.Net.Http.Headers;
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@inject IHttpClientFactory ClientFactory
+@inject IShoppingListService ShoppingListService
+@inject IAuthenticationService AuthenticationService
+@inject NavigationManager NavManager
+
+<h1>Shopping List</h1>
+
+@if (shoppingIngredientListDto == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <MudText>@RecipeTitles</MudText>
+    <MudTable Items="@shoppingListDto.Items">
+        <HeaderContent>
+            <MudTh>Recipe</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.RecipeName </MudTd>
+            <MudTd><MudButton @onclick="() => RemoveRecipe(context)" Variant="Variant.Filled" Color="Color.Secondary">Remove</MudButton></MudTd>
+        </RowTemplate>
+    </MudTable>
+    <MudButton @onclick="GoToProductSearch" Variant="Variant.Filled" Color="Color.Primary">Product Search</MudButton>
+    <MudTable Items="@shoppingIngredientListDto">
+        <HeaderContent>
+            <MudTh>Amount</MudTh>
+            <MudTh>Item</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.DisplayAmount </MudTd>
+            <MudTd>@context.Item</MudTd>
+            <MudTd><MudButton @onclick="() => shoppingIngredientListDto.Remove(context)" Variant="Variant.Filled" Color="Color.Secondary">Remove</MudButton></MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<RecipeViewIngredientListItemDto> shoppingIngredientListDto;
+    private List<string> availableIngredients;
+    private ShoppingListDto shoppingListDto;
+    public string RecipeTitles = "";
+    private int userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadIngredients();
+        await RefreshPage();
+        //userId = AuthenticationService.GetUserId() ?? 0;
+        //var clientlocal = ClientFactory.CreateClient("LocalApi");
+
+        //shoppingListDto = ShoppingListService.GetList();
+        //shoppingListDto.UserId = userId;
+        //var json = JsonConvert.SerializeObject(shoppingListDto);
+        //var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        //clientlocal.DefaultRequestHeaders.Accept.Add(
+        //            new MediaTypeWithQualityHeaderValue("application/json"));
+
+
+        //var resp = await clientlocal.PostAsync("api/Main/recipes/shoppingList/view", stringContent);
+
+        //shoppingIngredientListDto = JsonConvert.DeserializeObject<List<RecipeViewIngredientListItemDto>>(await resp.Content.ReadAsStringAsync());
+
+    }
+
+    public async Task RemoveRecipe(ShoppingListDto.ShoppingItemDto item)
+    {
+        int index = shoppingListDto.Items.IndexOf(item);
+        ShoppingListService.RemoveRecipeFromList(index);
+        await RefreshPage();
+    }
+
+    public async Task RefreshPage()
+    {
+        userId = AuthenticationService.GetUserId() ?? 0;
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+
+        shoppingListDto = ShoppingListService.GetList();
+        shoppingListDto.UserId = userId;
+        var json = JsonConvert.SerializeObject(shoppingListDto);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        clientlocal.DefaultRequestHeaders.Accept.Add(
+                    new MediaTypeWithQualityHeaderValue("application/json"));
+
+
+        var resp = await clientlocal.PostAsync("api/Main/recipes/shoppingList/view", stringContent);
+
+        shoppingIngredientListDto = JsonConvert.DeserializeObject<List<RecipeViewIngredientListItemDto>>(await resp.Content.ReadAsStringAsync());
+
+
+
+    }
+
+    //TODO integrate into page later
+    private async Task LoadIngredients()
+    {
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync("api/Main/recipes/shoppingList/ingredients");
+        var dtoList = JsonConvert.DeserializeObject<List<RecipeViewIngredientListItemDto>>(resp);
+        availableIngredients = dtoList.Select(a => a.Item).ToList();
+    }
+
+    private async Task<IEnumerable<string>> SearchIngredients(string value)
+    {
+
+        // if text is null or empty, don't return values (drop-down will not open)
+        if (string.IsNullOrEmpty(value))
+            return new string[0];
+        var list = availableIngredients.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        if (!list.Any(a => a.Equals(value.ToUpper()))) list = list.Prepend(value);
+        return list;
+    }
+
+    public void GoToProductSearch()
+    {
+        ShoppingListService.SetIngredientList(shoppingIngredientListDto);
+        //TODO navigate to search page once it's been created
+        NavManager.NavigateTo("/shoppinglist/search");
+    }
+
+}

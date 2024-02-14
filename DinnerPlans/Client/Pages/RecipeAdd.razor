@@ -1,0 +1,234 @@
+﻿@page "/recipe/add"
+@attribute [Authorize]
+
+<PageTitle>Add Recipe</PageTitle>
+
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@inject IHttpClientFactory ClientFactory
+@inject IFileReadService FileReadService
+@inject NavigationManager NavManager
+
+
+@if (recipe == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1><MudTextField Label="Recipe Title" @bind-Value="@recipe.Name" /> </h1>
+    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 secondaryheader" Elevation="0">
+        <MudSwitch Class="inline-block" @bind-Checked:get="@MetricPreferred" @bind-Checked:set="ToggleMetric" Label="Metric" Color="Color.Primary" />
+        <MudNumericField Class="servingsinput" @bind-Value="Servings" />
+    </MudPaper>
+    <MudTable Items="@recipe.Ingredients">
+        <ColGroup>
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 50%;">
+            <col span="1" style="width: 10%;">
+        </ColGroup>
+        <HeaderContent>
+            <MudTh>Unit</MudTh>
+            <MudTh>Amount</MudTh>
+            <MudTh>Ingredient</MudTh>
+            <MudTh>Is Active</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Unit">@context.Measure.Unit</MudTd>
+            <MudTd DataLabel="Amount">@context.Amount</MudTd>
+            <MudTd DataLabel="Ingredient">@context.Ingredient</MudTd>
+            <MudTd DataLabel="Is Active">@context.IsActive</MudTd>
+            <MudTd><MudButton @onclick="() => recipe.Ingredients.Remove(context)" Variant="Variant.Filled" Color="Color.Secondary">Remove</MudButton></MudTd>
+        </RowTemplate>
+        <RowEditingTemplate>
+            <MudTd DataLabel="Unit">
+                <MudSelect Label="Unit" T="MeasureDropdownDto" ToStringFunc="@converter" AnchorOrigin="Origin.BottomCenter" @bind-Value="@context.Measure">
+                    @foreach (MeasureDropdownDto measure in recipe.Measures)
+                    {
+                        <MudSelectItem Value="@measure"></MudSelectItem>
+                    }
+                    </MudSelect>
+                   
+            </MudTd>
+            <MudTd DataLabel="Amount">
+                <MudNumericField @bind-Value="@context.Amount" Required Min="0" />
+            </MudTd>
+            <MudTd DataLabel="Ingredient">
+                <MudAutocomplete Label="Ingredient" T="string" @bind-Value="@context.Ingredient" SearchFunc="@SearchIngredients"
+                             ResetValueOnEmptyText="true"
+                             CoerceText="true"
+                             CoerceValue="true"
+                             AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudTd>
+            <MudTd DataLabel="Is Active">
+                <MudCheckBox @bind-Checked="@context.IsActive" />
+            </MudTd>
+        </RowEditingTemplate>
+    </MudTable>
+    <MudButton @onclick="AddIngredientRow" Variant="Variant.Filled" Color="Color.Primary">Add Row</MudButton>
+    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg" FilesChanged="UploadIngredientFile" MaximumFileCount="1">
+        <ButtonTemplate>
+            <MudButton HtmlTag="label"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                   for="@context">
+                Upload Ingredient Image File
+            </MudButton>
+        </ButtonTemplate>
+    </MudFileUpload>
+
+    <MudTable Items="@recipe.Instructions">
+        <ColGroup>
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 80%;">
+            <col span="1" style="width: 10%;">
+        </ColGroup>
+        <HeaderContent>
+            <MudTh>Order</MudTh>
+            <MudTh>Instruction</MudTh>
+            <MudTh>Is Active</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Order">@context.Order</MudTd>
+            <MudTd Class="instructiontext" DataLabel="Instruction">@context.Instruction</MudTd>
+            <MudTd DataLabel="Is Active">@context.IsActive</MudTd>
+            <MudTd><MudButton @onclick="() => recipe.Instructions.Remove(context)" Variant="Variant.Filled" Color="Color.Secondary">Remove</MudButton></MudTd>
+        </RowTemplate>
+        <RowEditingTemplate>
+            <MudTd DataLabel="Order">
+                <MudNumericField @bind-Value="@context.Order" Required Min="0" />
+            </MudTd>
+            <MudTd Class="instructiontext" DataLabel="Instruction">
+                <MudTextField Class="instructiontext" Lines="3" @bind-Value="@context.Instruction" Required />
+            </MudTd>
+            <MudTd DataLabel="Is Active">
+                <MudCheckBox @bind-Checked="@context.IsActive" />
+            </MudTd>
+        </RowEditingTemplate>
+    </MudTable>
+     <MudButton @onclick="AddInstructionRow" Variant="Variant.Filled" Color="Color.Primary">Add Row</MudButton>
+    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg" FilesChanged="UploadInstructionFile" MaximumFileCount="1">
+        <ButtonTemplate>
+            <MudButton HtmlTag="label"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                   for="@context">
+                Upload Instruction Image File
+            </MudButton>
+        </ButtonTemplate>
+    </MudFileUpload>
+     <div />
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="EditRecipe">Save Changes</MudButton>
+       
+}
+
+@code {
+    private RecipeEditDto? recipe;
+
+
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public int Servings { get; set; } = 2;
+
+    [Parameter]
+    public bool MetricPreferred { get; set; } = false;
+
+    private IBrowserFile ingredientFile;
+    private IBrowserFile instructionFile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RefreshPage();
+    }
+
+    private async Task ToggleMetric(bool value)
+    {
+        MetricPreferred = value;
+        await RefreshPage();
+    }
+
+    Func<MeasureDropdownDto, string> converter = p => p?.Unit;
+
+    private async Task<IEnumerable<string>> SearchIngredients(string value)
+    {
+
+        // if text is null or empty, don't return values (drop-down will not open)
+        if (string.IsNullOrEmpty(value))
+            return new string[0];
+        var list = recipe.AvailableIngredients.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        if (!list.Any(a => a.Equals(value.ToUpper()))) list = list.Prepend(value);
+        return list;
+    }
+
+    private void AddIngredientRow()
+    {
+        recipe.Ingredients.Add(new RecipeIngredientEditDto
+            {
+                Id = 0,
+                RecipeId = recipe.Id,
+                IngredientId = 0,
+                Ingredient = "",
+                Measure = new MeasureDropdownDto(),
+                Amount = 0,
+                IsActive = true
+            });
+    }
+
+    private void AddInstructionRow()
+    {
+        recipe.Instructions.Add(new RecipeInstructionEditDto
+            {
+                Id = 0,
+                RecipeId = recipe.Id,
+                Instruction = "",
+                Order = recipe.Instructions.Count,
+                IsActive = true
+            });
+    }
+
+    private async Task RefreshPage()
+    {
+        /*TODO change how users work*/
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/new/{MetricPreferred}");
+        recipe = JsonConvert.DeserializeObject<RecipeEditDto>(resp);
+    }
+
+
+    private async Task EditRecipe()
+    {
+        var json = JsonConvert.SerializeObject(recipe);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.PostAsync($"api/Main/recipes/edit/1/{MetricPreferred}/{Servings}", stringContent);
+        if (resp.IsSuccessStatusCode)
+            //TODO show some indication the operation completed successfully
+            NavManager.NavigateTo("/recipelist");
+
+
+        //TODO figure out how to show an error 
+    }
+
+    private async Task UploadIngredientFile(IBrowserFile file)
+    {
+        ingredientFile = file;
+        var ingredients = await FileReadService.GetIngredientsFromUpload(ingredientFile);
+        recipe.Ingredients = (ingredients.Select(a => new RecipeIngredientEditDto { Ingredient = a.Item, IsActive = true, Amount = a.AmountDto.Amount, Measure = recipe.Measures.FirstOrDefault(b => b.Unit.Equals(a.AmountDto.Unit)) })).ToList();
+    }
+    private async Task UploadInstructionFile(IBrowserFile file)
+    {
+        instructionFile = file;
+        var instructions = await FileReadService.GetInstructionsFromUpload(instructionFile);
+        recipe.Instructions = (instructions.Select(a => new RecipeInstructionEditDto { Instruction = a.Instruction, IsActive = true })).ToList();
+    }
+
+}

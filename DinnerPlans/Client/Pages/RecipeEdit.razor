@@ -1,0 +1,226 @@
+﻿@page "/recipeview/{id:int}/edit"
+@attribute [Authorize]
+
+<PageTitle>Recipes</PageTitle>
+
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager NavManager
+@inject IAuthenticationService AuthenticationService
+@inject INavigationService NavigationService
+
+
+@if (recipe == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <h1><textarea style="width: 100%" name="name" type="text" @bind="@recipe.Name" /> </h1>
+    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 secondaryheader" Elevation="0">
+        <MudLink Class="object-left" OnClick="Previous" Disabled="@(recipe.PreviousId == 0)"
+             Href="@($"recipeview/{recipe.PreviousId}")">
+            Previous
+        </MudLink>
+        <MudSwitch Class="inline-block" @bind-Checked:get="@MetricPreferred" @bind-Checked:set="ToggleMetric" Label="Metric" Color="Color.Primary" />
+        <MudNumericField Class="servingsinput" @bind-Value="Servings" />
+        <MudButton Class="inline-block" @onclick="ChangeServings" Variant="Variant.Filled" Color="Color.Primary">Change Servings</MudButton>
+        <MudLink Class="object-right" OnClick="Next" Disabled="@(recipe.NextId == 0)"
+             Href="@($"recipeview/{recipe.NextId}")">
+            Next
+        </MudLink>
+    </MudPaper>
+    <MudTable Class="mb-16" Items="@recipe.Ingredients">
+        <ColGroup>
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 50%;">
+            <col span="1" style="width: 10%;">
+        </ColGroup>
+        <HeaderContent>
+            <MudTh>Unit</MudTh>
+            <MudTh>Amount</MudTh>
+            <MudTh>Ingredient</MudTh>
+            <MudTh>Is Active</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Unit">@context.Measure.Unit</MudTd>
+            <MudTd DataLabel="Amount">@context.Amount</MudTd>
+            <MudTd DataLabel="Ingredient">@context.Ingredient</MudTd>
+            <MudTd DataLabel="Is Active">@context.IsActive</MudTd>
+        </RowTemplate>
+        <RowEditingTemplate>
+           @* <MudTd DataLabel="Unit">  
+                 <!--TODO figure out how to get a dropdown here-->
+                <MudTextField @bind-Value="@context.Measure.Unit" Required />
+            </MudTd>*@
+            <MudTd DataLabel="Unit">
+                <MudSelect T="MeasureDropdownDto" ToStringFunc="@converter" AnchorOrigin="Origin.BottomCenter" @bind-Value="@context.Measure">
+                    @foreach (MeasureDropdownDto measure in recipe.Measures)
+                    {
+                        <MudSelectItem Value="@measure"></MudSelectItem>
+                    }
+                    </MudSelect>
+            </MudTd>
+            <MudTd DataLabel="Amount">
+                <MudNumericField @bind-Value="@context.Amount" Required Min="0" />
+            </MudTd>
+            <MudTd DataLabel="Ingredient">
+                <MudAutocomplete Label="Ingredient" T="string" @bind-Value="@context.Ingredient" SearchFunc="@SearchIngredients"
+                             ResetValueOnEmptyText="true"
+                             CoerceText="true"
+                             CoerceValue="true"
+                             AdornmentIcon="@Icons.Material.Filled.Search" AdornmentColor="Color.Primary" />
+            </MudTd>
+            <MudTd DataLabel="Is Active">
+                <MudCheckBox @bind-Checked="@context.IsActive" />
+            </MudTd>
+        </RowEditingTemplate>
+    </MudTable>
+    <MudButton @onclick="AddIngredientRow" Variant="Variant.Filled" Color="Color.Primary">Add Row</MudButton>
+
+    <MudTable Items="@recipe.Instructions">
+        <ColGroup>
+            <col span="1" style="width: 10%;">
+            <col span="1" style="width: 80%;">
+            <col span="1" style="width: 10%;">
+        </ColGroup>
+        <HeaderContent>
+            <MudTh>Order</MudTh>
+            <MudTh>Instruction</MudTh>
+            <MudTh>Is Active</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Order">@context.Order</MudTd>
+            <MudTd Class="instructiontext" DataLabel="Instruction">@context.Instruction</MudTd>
+            <MudTd DataLabel="Is Active">@context.IsActive</MudTd>
+        </RowTemplate>
+        <RowEditingTemplate>
+            <MudTd DataLabel="Order">
+                <MudNumericField @bind-Value="@context.Order" Required Min="0" />
+            </MudTd>
+            <MudTd Class="instructiontext" DataLabel="Instruction">
+                <MudTextField Class="instructiontext" Lines="3" @bind-Value="@context.Instruction" Required />
+            </MudTd>
+            <MudTd DataLabel="Is Active">
+                <MudCheckBox @bind-Checked="@context.IsActive" />
+            </MudTd>
+        </RowEditingTemplate>
+    </MudTable>
+     <MudButton @onclick="AddInstructionRow" Variant="Variant.Filled" Color="Color.Primary">Add Row</MudButton>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary" @onclick="EditRecipe">Save Changes</MudButton>
+       
+}
+
+@code {
+    private RecipeEditDto? recipe;
+
+    [Parameter]
+    public int Id { get; set; }
+
+    [Parameter]
+    public int Servings { get; set; } = 2;
+
+    [Parameter]
+    public bool MetricPreferred { get; set; } = false;
+
+    Func<MeasureDropdownDto, string> converter = p => p?.Unit;
+
+    private int userId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userId = AuthenticationService.GetUserId() ?? 0;
+
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/defServ/{Id}");
+        Servings = JsonConvert.DeserializeObject<int>(resp);
+
+        await RefreshPage();
+    }
+
+    private async Task ToggleMetric(bool value)
+    {
+        MetricPreferred = value;
+        await RefreshPage();
+    }
+
+    private async Task ChangeServings()
+    {
+        await RefreshPage();
+    }
+
+    private void AddIngredientRow()
+    {
+        recipe.Ingredients.Add(new RecipeIngredientEditDto
+            {
+                Id = 0,
+                RecipeId = recipe.Id,
+                IngredientId = 0,
+                Ingredient = "",
+                Measure = new MeasureDropdownDto(),
+                Amount = 0,
+                IsActive = true
+            });
+    }
+
+    private void AddInstructionRow()
+    {
+        recipe.Instructions.Add(new RecipeInstructionEditDto
+            {
+                Id = 0,
+                RecipeId = recipe.Id,
+                Instruction = "",
+                Order = recipe.Instructions.Count,
+                IsActive = true
+            });
+    }
+
+    private async Task<IEnumerable<string>> SearchIngredients(string value)
+    {
+
+        // if text is null or empty, don't return values (drop-down will not open)
+        if (string.IsNullOrEmpty(value))
+            return new string[0];
+        var list = recipe.AvailableIngredients.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+        if (!list.Any(a => a.Equals(value.ToUpper()))) list = list.Prepend(value);
+        return list;
+    }
+
+    private async Task RefreshPage()
+    {
+        /*TODO change how users work*/
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/editview/{Id}/{Servings}/{MetricPreferred}");
+        recipe = JsonConvert.DeserializeObject<RecipeEditDto>(resp);
+    }
+
+    private async Task Next()
+    {
+        Id = recipe.NextId;
+        await RefreshPage();
+    }
+
+    private async Task Previous()
+    {
+        Id = recipe.PreviousId;
+        await RefreshPage();
+    }
+
+    private async Task EditRecipe()
+    {
+        var json = JsonConvert.SerializeObject(recipe);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/{MetricPreferred}/{Servings}", stringContent);
+        if (resp.IsSuccessStatusCode)
+        //TODO show some indication the operation completed successfully
+            NavManager.NavigateTo($"/recipeview/{@recipe.Id}");
+        
+        //TODO figure out how to show an error
+    }
+}

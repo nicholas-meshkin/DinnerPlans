@@ -1,0 +1,121 @@
+﻿@page "/userrecipelist"
+@attribute [Authorize]
+
+<PageTitle>Recipes</PageTitle>
+
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@inject IHttpClientFactory ClientFactory
+@inject IShoppingListService ShoppingListService
+@inject IAuthenticationService AuthenticationService
+@inject INavigationService NavigationService
+
+<h1>Recipes</h1>
+
+<MudButton Href="@("recipe/add")" Variant="Variant.Filled" Color="Color.Primary">Add New Recipe</MudButton>
+
+@if (isLoading)
+{
+    <p><em>Loading...</em></p>
+}
+else if (recipeTitles!=null && !recipeTitles.Any())
+{
+    <p>No recipes found for user. Try adding some from the suggested list!</p>
+}
+else
+{
+    <MudTable @ref="reclist" Items="@recipeTitles" SortLabel="Sort By" Filter="new Func<RecipeListItemDto,bool>(FilterFunc1)">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">List of available recipes.</MudText>
+            <MudSpacer />
+            <MudIcon Icon="@Icons.Material.Filled.Warning"></MudIcon> <MudText Typo="Typo.caption">= Needs editing</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0" Immediate="true"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+                <MudTh></MudTh>
+            <MudTh>
+                <MudTableSortLabel SortBy="new Func<RecipeListItemDto, object>(x=>x.Name)">Name</MudTableSortLabel></MudTh>
+            <MudTh><MudTableSortLabel SortBy="new Func<RecipeListItemDto, object>(x=>x.Rating)">Rating</MudTableSortLabel></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd> <MudButton @onclick="()=> AddToShoppingList(context.Id,context.Name,context.DefaultServings)" Variant="Variant.Filled" Color="Color.Primary">Add to List</MudButton></MudTd>
+            <MudTd style="@GetAlertStyle(@context.NeedsEdit)">
+                @if (@context.NeedsEdit)
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.Warning"></MudIcon>
+                }
+
+                <MudLink OnClick="SetNavIds" Href="@($"recipeview/{@context.Id}")">
+                    @context.Name
+                </MudLink>
+              
+            </MudTd>
+            @if (!@context.Rating.Equals(0))
+            {
+                <MudTd>@context.Rating ☆</MudTd>
+            }
+            else
+            {
+                <MudTd></MudTd>
+            }
+
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager />
+        </PagerContent>
+    </MudTable>
+}
+
+@code {
+    private RecipeListItemDto[]? recipeTitles;
+    private string searchString1 = "";
+    private int userId;
+    MudTable<RecipeListItemDto> reclist;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        userId = AuthenticationService.GetUserId() ?? 0;
+
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/{userId}");
+        recipeTitles = JsonConvert.DeserializeObject<RecipeListItemDto[]>(resp);
+        searchString1 = NavigationService.GetSearch();
+
+        isLoading = false;
+    }
+
+    private async Task AddToShoppingList(int recipeId, string name, int servings)
+    {
+        ShoppingListService.AddToList(recipeId, name, servings);
+
+    }
+
+    private void SetNavIds()
+    {
+        var items = reclist.FilteredItems.Select(a => a.Id).ToList();
+        NavigationService.SetList(items);
+        NavigationService.SetSearch(searchString1);
+    }
+
+    private bool FilterFunc1(RecipeListItemDto dto) => FilterFunc(dto, searchString1);
+
+    private bool FilterFunc(RecipeListItemDto dto, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (dto.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (dto.Ingredients.Any(a => a.Contains(searchString, StringComparison.OrdinalIgnoreCase)))
+            return true;
+
+        return false;
+    }
+
+    private string GetAlertStyle(bool isAlert)
+    {
+        return isAlert ? "background-color:tomato;" : "";
+    }
+}

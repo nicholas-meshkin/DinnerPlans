@@ -1,0 +1,386 @@
+﻿@page "/shoppinglist/search"
+@attribute [Authorize]
+
+<PageTitle>Shopping List - Product Search</PageTitle>
+
+@using System.Net.Http.Headers;
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@inject IHttpClientFactory ClientFactory
+@inject IShoppingListService ShoppingListService
+@inject IAuthenticationService AuthenticationService
+
+<h1>Shopping List</h1>
+
+@if (!isFinishedLoading)
+{
+    <p><em>Loading...</em></p>
+}
+else if (string.IsNullOrEmpty(LocationId))
+{
+    <p><em>A location must be selected to search for products.</em></p>
+}
+else if (!isShowFullShoppingList)
+{
+    <MudButton @onclick="GenerateShoppingList" Variant="Variant.Filled" Color="Color.Primary">Generate Shopping List</MudButton>
+    <MudText>@RecipeTitles</MudText>
+    <MudTable Items="@ingredientList">
+        <HeaderContent>
+            <MudTh>Amount</MudTh>
+            <MudTh>Item</MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+            <MudTh></MudTh>
+            <MudTh>Items Selected</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.DisplayAmount </MudTd>
+            <MudTd>@context.Item</MudTd>
+            <MudTextField @bind-Value="@context.AltQuery"></MudTextField>
+            <MudTd><MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => ChangeQuery(context))"> Change Query</MudButton></MudTd>
+            <MudTd><MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => ShowBtnPress(context.Item))">@((context.ShowDetails == true) ? "Hide" : "Show") Results ( @ShoppingListService.GetProductResultCount(context.UseAltQuery ? context.AltQuery : context.Item) )</MudButton></MudTd>
+            <MudTd>@selectedItems[ingredientList.IndexOf(context)]?.Count()</MudTd>
+        </RowTemplate>
+
+        <ChildRowContent>
+            @if (context.ShowDetails)
+            {
+                <MudTr>
+                    <td colspan="4">
+                        <MudCard Elevation="0">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                   @* todo test*@
+                                    <MudText Typo="Typo.body1">Search results for
+                                        @if (@context.UseAltQuery)
+                                            {@context.AltQuery}
+                                        else  {<strong>@context.Item</strong>}
+                                       
+                                        </MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent Class="pa-0">
+                                <MudTable Items="ShoppingListService.GetFromProductList(context.UseAltQuery ? context.AltQuery :  context.Item).data" 
+                                Context="SearchContext" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="0"
+                                  MultiSelection="true" @bind-SelectedItems="selectedItems[ingredientList.IndexOf(context)]">
+                                    <ColGroup>
+                                        <col />
+                                        <col />
+                                        <col style="width:200px;" />
+                                    </ColGroup>
+                                    <HeaderContent>
+                                        <MudTh>
+                                            <MudTableSortLabel SortBy="new Func<KrogerProductSearchResponseDto.Datum, object>(x=>x.description)">Description</MudTableSortLabel>
+                                            </MudTh>
+                                        <MudTh>
+                                             <MudTableSortLabel SortBy="new Func<KrogerProductSearchResponseDto.Datum, object>(x=>x.items[0]?.size)">Size</MudTableSortLabel>
+                                        </MudTh>
+                                        <MudTh>
+                                            <MudTableSortLabel SortBy="new Func<KrogerProductSearchResponseDto.Datum, object>(x=>x.items[0]?.price?.regular)">Price</MudTableSortLabel>
+                                        </MudTh>
+                                        <MudTh>
+                                            <MudTableSortLabel SortBy="new Func<KrogerProductSearchResponseDto.Datum, object>(x=>x.items[0]?.price?.promo)">Promo Price</MudTableSortLabel>
+                                        </MudTh>
+                                        <MudTh>Sold By</MudTh>
+                                        <MudTh>Set Favorite</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Description">@SearchContext.description</MudTd>
+                                        <MudTd DataLabel="Size">@SearchContext.items[0]?.size</MudTd>
+                                        <MudTd DataLabel="Price">@SearchContext.items[0]?.price?.regular</MudTd>
+                                        <MudTd DataLabel="Promo Price">@SearchContext.items[0]?.price?.promo</MudTd>
+                                        <MudTd DataLabel="Sold By">@SearchContext.items[0]?.soldBy</MudTd>
+                                        <MudTd DataLabel="Set Favorite">
+                                            @if (string.IsNullOrEmpty(@context.FavoriteProductId) || !@context.FavoriteProductId.Equals(SearchContext.productId))
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.StarOutline" OnClick="@(() => SetFavorite(SearchContext.productId, context.IngredientId))"></MudIconButton>
+                                            }
+                                            else{
+                                            <MudIconButton Icon="@Icons.Material.Filled.Star" OnClick="@(() => DeleteFavorite(SearchContext.productId, context.IngredientId))"></MudIconButton>
+                                            }
+                                            </MudTd>
+                                    </RowTemplate>
+                                    <PagerContent>
+                                        <MudTablePager />
+                                    </PagerContent>
+                                </MudTable>
+                            </MudCardContent>
+                        </MudCard>
+                    </td>
+                </MudTr>
+            }
+        </ChildRowContent>
+    </MudTable>
+}
+else
+{
+    <MudButton @onclick="ReturnToProductSelection" Variant="Variant.Filled" Color="Color.Primary">Return to Product Select</MudButton>
+    <MudTable Items="@fullShoppingList">
+        <HeaderContent>
+            <MudTh>Ingredient</MudTh>
+            <MudTh>Product Description</MudTh>
+            <MudTh>Amount Required</MudTh>
+            <MudTh>Ingredient Unit</MudTh>
+            <MudTh>Product Amount</MudTh>
+            <MudTh>Product Unit</MudTh>
+            <MudTh>Amount To Purchase</MudTh>
+            <MudTh>Price Per Unit</MudTh>
+            <MudTh>Total Price</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.Ingredient </MudTd>
+            <MudTd>@context.ProductDescription</MudTd>
+            <MudTd>@context.AmountRequired</MudTd>
+            <MudTd>@context.IngredientUnit</MudTd>
+            <MudTd>@context.ProductAmount</MudTd>
+            <MudTd>@context.ProductUnit</MudTd>
+            <MudTd>@context.AmountToPurchase</MudTd>
+            <MudTd>@context.PricePerUnit</MudTd>
+            <MudTd>@context.TotalPrice</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<RecipeViewIngredientListItemDto> ingredientList;
+    public string RecipeTitles = "";
+    public string? LocationId = "";
+    private bool isFinishedLoading = false;
+    private int userId;
+    private bool isShowFullShoppingList = false;
+
+    private HashSet<KrogerProductSearchResponseDto.Datum>?[] selectedItems;
+
+    //private List<KrogerProductSearchResponseDto.Datum> selectedItems = new List<KrogerProductSearchResponseDto.Datum>();
+
+    private string previousAltQuery = "";
+
+    private List<ProductShoppingListDto> fullShoppingList;
+
+    private void ShowBtnPress(string item)
+    {
+        RecipeViewIngredientListItemDto tmpDto = ingredientList.First(f => f.Item.Equals(item));
+        tmpDto.ShowDetails = !tmpDto.ShowDetails;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        userId = AuthenticationService.GetUserId() ?? 0;
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        clientlocal.DefaultRequestHeaders.Accept.Add(
+                   new MediaTypeWithQualityHeaderValue("application/json"));
+
+        ingredientList = ShoppingListService.GetIngredientList();
+
+        //use searched for store if one is there, otherwise attempt to use user's preferred store
+        LocationId = ShoppingListService.GetStore();
+
+        if (string.IsNullOrEmpty(LocationId)) LocationId = AuthenticationService.GetUserStore();
+        if (string.IsNullOrEmpty(LocationId)) { 
+            isFinishedLoading = true;
+            return; 
+        }
+
+        selectedItems = new HashSet<KrogerProductSearchResponseDto.Datum>[ingredientList.Count];
+
+        //TODO test
+        var favProdIds = "";
+
+        foreach (var item in ingredientList)
+        {
+            //don't want to redo search if page has already been loaded
+            if (ShoppingListService.GetFromProductList(item.Item) != null) continue;
+            if (!string.IsNullOrEmpty(item.FavoriteProductId))
+            {
+                favProdIds += item.FavoriteProductId + ",";
+                continue;
+            }
+            var searchDto = new KrogerProductSearchRequestDto { Query = item.Item, LocationId = LocationId };
+
+            var json = JsonConvert.SerializeObject(searchDto);
+            var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            var resp = await clientlocal.PostAsync("api/Kroger/productSearch", stringContent);
+
+            if (resp.IsSuccessStatusCode)
+            {
+                var result = JsonConvert.DeserializeObject<KrogerProductSearchResponseDto>(await resp.Content.ReadAsStringAsync());
+                ShoppingListService.AddToProductList(item.Item, result);
+            }
+        }
+
+        if (!string.IsNullOrEmpty(favProdIds))
+        {
+            favProdIds = favProdIds.TrimEnd(',');
+            var searchDto = new KrogerProductSearchRequestDto { ProductId = favProdIds, LocationId = LocationId };
+            var json = JsonConvert.SerializeObject(searchDto);
+            var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+            var resp = await clientlocal.PostAsync("api/Kroger/productSearch", stringContent);
+            if (resp.IsSuccessStatusCode)
+            {
+                var result = JsonConvert.DeserializeObject<KrogerProductSearchResponseDto>(await resp.Content.ReadAsStringAsync());
+                foreach (var item in result.data)
+                {
+                    //TODO figure out why this messed up
+                    var ing = ingredientList.Where(a => a.FavoriteProductId.Equals(item.productId)).FirstOrDefault();
+                    if (ing != null)
+                        ShoppingListService.AddToProductList(ing.Item, new KrogerProductSearchResponseDto { data = new KrogerProductSearchResponseDto.Datum[] { item } });
+
+                }
+            }
+        }
+
+
+        isFinishedLoading = true;
+    }
+
+    private async Task SetFavorite(string productId, int ingredientId)
+    {
+        isFinishedLoading = false;
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        clientlocal.DefaultRequestHeaders.Accept.Add(
+                   new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var favDto = new UserIngredientProductFavoriteDto { ProductId = productId, IngredientId = ingredientId, UserId = userId };
+
+        var json = JsonConvert.SerializeObject(favDto);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        var resp = await clientlocal.PostAsync("api/Main/recipes/shoppingList/view/favorite/update", stringContent);
+
+        if (resp.IsSuccessStatusCode)
+        {
+            ingredientList.First(a => a.IngredientId == ingredientId).FavoriteProductId = productId;
+        }
+        isFinishedLoading = true;
+    }
+
+    private async Task DeleteFavorite(string productId, int ingredientId)
+    {
+        isFinishedLoading = false;
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        clientlocal.DefaultRequestHeaders.Accept.Add(
+                   new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var favDto = new UserIngredientProductFavoriteDto { ProductId = productId, IngredientId = ingredientId, UserId = userId };
+        var json = JsonConvert.SerializeObject(favDto);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        var resp = await clientlocal.PostAsync("api/Main/recipes/shoppingList/view/favorite/delete", stringContent);
+
+        if (resp.IsSuccessStatusCode)
+        {
+            ingredientList.First(a => a.IngredientId == ingredientId).FavoriteProductId = "";
+        }
+        isFinishedLoading = true;
+    }
+
+    private async Task ChangeQuery(RecipeViewIngredientListItemDto dto)
+    {
+        isFinishedLoading = false;
+        if (!dto.UseAltQuery)
+        {
+            ShoppingListService.RemoveFromProductList(dto.Item);
+            dto.UseAltQuery = true;
+        }
+        else
+        {
+            ShoppingListService.RemoveFromProductList(dto.PreviousAltQuery);
+        }
+
+
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        clientlocal.DefaultRequestHeaders.Accept.Add(
+                   new MediaTypeWithQualityHeaderValue("application/json"));
+
+        var searchDto = new KrogerProductSearchRequestDto { Query = dto.AltQuery, LocationId = LocationId };
+
+        var json = JsonConvert.SerializeObject(searchDto);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        var resp = await clientlocal.PostAsync("api/Kroger/productSearch", stringContent);
+
+        if (resp.IsSuccessStatusCode)
+        {
+            var result = JsonConvert.DeserializeObject<KrogerProductSearchResponseDto>(await resp.Content.ReadAsStringAsync());
+            ShoppingListService.AddToProductList(dto.AltQuery, result);
+            dto.PreviousAltQuery = dto.AltQuery;
+        }
+        isFinishedLoading = true;
+    }
+
+    private void ReturnToProductSelection()
+    {
+        isShowFullShoppingList = false;
+    }
+
+    private void GenerateShoppingList()
+    {
+        isFinishedLoading = false;
+        fullShoppingList = new List<ProductShoppingListDto>();
+        foreach (var item in ingredientList)
+        {
+            var products = selectedItems[ingredientList.IndexOf(item)];
+            //TODO figure out what to do if multiple things are selected for an ingredient
+            var product = products?.First();
+
+            var listDto = new ProductShoppingListDto();
+            listDto.IngredientId = item.IngredientId;
+            listDto.Ingredient = item.Item;
+            listDto.AmountRequired = (decimal)item.Amount;
+            listDto.IngredientUnit = item.Unit;
+            if(product != null)
+            {
+                listDto.ProductDescription = product.description;
+                listDto.ProductId = product.productId;
+                listDto.PricePerUnit = product.items?[0]?.price?.promo == 0 ? (decimal?)product.items?[0]?.price?.regular : (decimal?)product?.items?[0]?.price?.promo;
+
+                //TODO test and modify, this is def going to fail at first
+                var size = product.items?[0]?.size;
+                if (!string.IsNullOrEmpty(size))
+                {
+                    listDto.ProductUnit = ShoppingListService.ParseUnit(size);
+
+
+                    if (!listDto.ProductUnit.Equals("UNIT"))
+                    {
+                        var amountStartIndex = size.ToUpper().IndexOf(listDto.ProductUnit);
+                        if (amountStartIndex != -1)
+                        {
+                            listDto.ProductAmount = ShoppingListService.ParseAmount(size.Substring(0, amountStartIndex));
+                        }
+                    }
+                    else
+                    {
+                        listDto.ProductAmount = ShoppingListService.ParseAmount(size);
+                    }
+                }
+                CalculatePurchaseAmount(listDto);
+                
+            }
+            fullShoppingList.Add(listDto);
+        }
+        isFinishedLoading = true;
+        isShowFullShoppingList = true;
+    }
+
+    private void CalculatePurchaseAmount(ProductShoppingListDto dto)
+    {
+        if (dto.AmountRequired == null || dto.ProductAmount == null) return;
+
+        var productAmountType = ShoppingListService.GetAmountType(dto.ProductUnit);
+        var ingredientAmountType = ShoppingListService.GetAmountType(dto.IngredientUnit);
+
+        //can't really do conversion if one is in units and other is in decimal amount
+        if ((productAmountType.Equals("UNIT") && !ingredientAmountType.Equals("UNIT")) ||
+        (!productAmountType.Equals("UNIT") && ingredientAmountType.Equals("UNIT"))) return;
+
+
+        var multiplier = ShoppingListService.GetMultiplier(dto);
+        if(multiplier != null)
+        {
+            dto.AmountToPurchase = dto.ProductAmount * multiplier;
+            dto.TotalPrice = dto.PricePerUnit * multiplier;
+        }
+       
+
+    }
+
+}

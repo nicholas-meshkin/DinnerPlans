@@ -1,0 +1,19 @@
+﻿@using DinnerPlans.Shared.DTOs
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField Lines="3" @bind-Value="CommentDto.Comment"> </MudTextField>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Save</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public RecipeCommentDto CommentDto { get; set; }
+    void Submit() => MudDialog.Close(DialogResult.Ok(CommentDto));
+    void Cancel() => MudDialog.Cancel();
+}
+

@@ -1,0 +1,106 @@
+﻿@page "/storeLookup"
+@attribute [Authorize]
+
+<PageTitle>Store Lookup</PageTitle>
+
+@using DinnerPlans.Client.Services.IServices
+@using DinnerPlans.Shared.DTOs
+@using Newtonsoft.Json
+@inject IHttpClientFactory ClientFactory
+@inject IShoppingListService ShoppingListService
+@inject IAuthenticationService AuthenticationService
+
+<h1>Store Lookup</h1>
+ <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 secondaryheader" Elevation="0">
+     <MudTextField Mask="@(new PatternMask("00000"))" Label="Zip" @bind-Value="zip"></MudTextField>
+    <MudNumericField Class="servingsinput" Label="Radius (miles)"  @bind-Value="radius" />
+    <MudButton @onclick="LocationSearch" Variant="Variant.Filled" Color="Color.Primary">Search</MudButton>
+ </MudPaper>
+
+
+@if (locations == null)
+{
+    <p><em></em></p>
+}
+else if (locations.Count()==0)
+{
+    <p><em>No results.</em></p>
+}
+else
+{
+    <MudTable Items="@locations">
+        
+        <HeaderContent>
+                <MudTh>Name</MudTh>
+                <MudTh>Address</MudTh>
+                <MudTh>City</MudTh>
+                <MudTh>State</MudTh>
+                <MudTh>Zip</MudTh>
+                <MudTh>Select</MudTh>
+                <MudTh>Favorite</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.name</MudTd>
+            <MudTd>@context.address.addressLine1</MudTd>
+            <MudTd>@context.address.city</MudTd>
+            <MudTd>@context.address.state</MudTd>
+            <MudTd>@context.address.zipCode</MudTd>
+            <MudTd> <MudButton @onclick="()=> SelectStore(context.locationId)">Select Store</MudButton></MudTd>
+            <MudTd>
+                @if (!@context.locationId.Equals(userFavoriteStore))
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.StarOutline" OnClick="@(() => FavoriteStore(context.locationId))"></MudIconButton>
+                }
+                else
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Star" OnClick="@(() => FavoriteStore(""))"></MudIconButton>
+                }</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private string zip;
+    private int radius;
+    private string? userFavoriteStore = "";
+
+    private LocationSearchResponseDto.Datum[]? locations;
+
+    protected override async Task OnInitializedAsync()
+    {
+        userFavoriteStore = AuthenticationService.GetUserStore();
+    }
+
+    private async Task LocationSearch()
+    {
+        //todo add error message?
+        if (string.IsNullOrEmpty(zip)) return;
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var resp = await clientlocal.GetStringAsync($"api/Kroger/locationSearch/{zip}/{radius}");
+        locations = (JsonConvert.DeserializeObject<LocationSearchResponseDto>(resp)).data;
+    }
+
+    private async Task SelectStore(string locationId)
+    {
+        ShoppingListService.SelectStore(locationId);
+    }
+
+    private async Task FavoriteStore(string locationId)
+    {
+        var user = AuthenticationService.GetUser();
+        user.PreferredStore = locationId;
+
+        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var json = JsonConvert.SerializeObject(user);
+        var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
+        var result = await clientlocal.PostAsync("api/Main/user/updatePreferences", stringContent);
+        if (result.IsSuccessStatusCode)
+        {
+            var resp = await result.Content.ReadAsStringAsync();
+            user = JsonConvert.DeserializeObject<UserDto>(resp);
+            if (user != null) AuthenticationService.SetUser(user);
+            userFavoriteStore = AuthenticationService.GetUserStore();
+        }
+    }
+
+}
