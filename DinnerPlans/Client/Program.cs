@@ -12,6 +12,7 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 
 
 builder.Services.AddMudServices();
+
 builder.Services.AddScoped<IShoppingListService, ShoppingListService>();
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<INavigationService, NavigationService>();
@@ -24,6 +25,7 @@ builder.Services.AddHttpClient("ServerAPI",
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
   .CreateClient("ServerAPI"));
+builder.Services.AddHttpClient("LocalApi", client => client.BaseAddress = new Uri("https://localhost:7087/"));
 
 //from https://auth0.com/blog/securing-blazor-webassembly-apps/
 builder.Services.AddOidcAuthentication(options =>

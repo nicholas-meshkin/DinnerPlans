@@ -29,10 +29,21 @@
             //this is auth0 user id, TODO figure out better way to integrate, this is quick test
             //TODO figure out why this is hitting twice??
             var aoId = state?.User.Claims
-                  .Where(c => c.Type.Equals("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"))
+                  .Where(c => c.Type.Equals("sub"))
                   .Select(c => c.Value)
                   .FirstOrDefault() ?? string.Empty;
             if (!string.IsNullOrEmpty(aoId)) aoId = aoId.Substring(6);
+
+            //test
+            //var ut = state.User;
+            //var cl = ut.Claims.ToList();
+            //var cls = cl.Select(a => a.Value).ToList();
+            //var idd = ut.Identities.ToList();
+
+            //var aoId = "652960eaa814c73298694868";
+
+           
+            
             var name = state?.User.Claims
                   .Where(c => c.Type.Equals("name"))
                   .Select(c => c.Value)

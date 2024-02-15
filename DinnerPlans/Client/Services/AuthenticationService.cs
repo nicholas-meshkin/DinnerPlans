@@ -22,8 +22,8 @@ namespace DinnerPlans.Client.Services
             return User;
         }
 
-        public int? GetUserId() { return User.Id; }
-        public string? GetUserStore() { return User.PreferredStore; }
+        public int? GetUserId() { return User?.Id; }
+        public string? GetUserStore() { return User?.PreferredStore; }
         public bool GetUserMetricPref() { return User.MetricPreferred; }
 
         public void Clear()
