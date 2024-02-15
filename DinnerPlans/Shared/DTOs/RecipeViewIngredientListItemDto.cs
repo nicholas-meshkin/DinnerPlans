@@ -18,7 +18,5 @@
         public string PreviousAltQuery { get; set; } = "";
         public string FavoriteProductId { get; set; } = "";
 
-
-        
     }
 }

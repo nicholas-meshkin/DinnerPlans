@@ -83,9 +83,9 @@ else
                 </RowTemplate>
             </MudTable>
         </MudTabPanel>
-        <MudTabPanel Text="Comments">
+        <MudTabPanel Text="Comments" BadgeData="@recipe.Comments.Count">
             <MudButton @onclick="()=>CommentDialog(new RecipeCommentDto{CommentId=0, UserId = userId, RecipeId = Id})">Add Comment</MudButton>
-            <MudTable Items="@recipe.Comments">
+            <MudTable T="RecipeCommentDto" Items="@recipe.Comments" OnRowClick="CommentRowClicked">
                 <RowTemplate>
                     <MudTd>@context.Updated.Value.ToShortDateString()</MudTd>
                     <MudTd>@context.UserName</MudTd>
@@ -150,6 +150,11 @@ else
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/flag/{Id}");
         if (JsonConvert.DeserializeObject<bool>(resp))
             await RefreshPage();
+    }
+
+    private async Task CommentRowClicked(TableRowClickEventArgs<RecipeCommentDto> tableRowClickEventArgs)
+    {
+        await CommentDialog(tableRowClickEventArgs.Item);
     }
 
     private async Task CommentDialog(RecipeCommentDto dto)
