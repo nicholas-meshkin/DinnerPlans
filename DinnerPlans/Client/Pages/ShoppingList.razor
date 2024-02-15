@@ -57,22 +57,6 @@ else
     {
         await LoadIngredients();
         await RefreshPage();
-        //userId = AuthenticationService.GetUserId() ?? 0;
-        //var clientlocal = ClientFactory.CreateClient("LocalApi");
-
-        //shoppingListDto = ShoppingListService.GetList();
-        //shoppingListDto.UserId = userId;
-        //var json = JsonConvert.SerializeObject(shoppingListDto);
-        //var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-
-        //clientlocal.DefaultRequestHeaders.Accept.Add(
-        //            new MediaTypeWithQualityHeaderValue("application/json"));
-
-
-        //var resp = await clientlocal.PostAsync("api/Main/recipes/shoppingList/view", stringContent);
-
-        //shoppingIngredientListDto = JsonConvert.DeserializeObject<List<RecipeViewIngredientListItemDto>>(await resp.Content.ReadAsStringAsync());
-
     }
 
     public async Task RemoveRecipe(ShoppingListDto.ShoppingItemDto item)
@@ -85,7 +69,7 @@ else
     public async Task RefreshPage()
     {
         userId = AuthenticationService.GetUserId() ?? 0;
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
 
         shoppingListDto = ShoppingListService.GetList();
         shoppingListDto.UserId = userId;
@@ -107,7 +91,7 @@ else
     //TODO integrate into page later
     private async Task LoadIngredients()
     {
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync("api/Main/recipes/shoppingList/ingredients");
         var dtoList = JsonConvert.DeserializeObject<List<RecipeViewIngredientListItemDto>>(resp);
         availableIngredients = dtoList.Select(a => a.Item).ToList();

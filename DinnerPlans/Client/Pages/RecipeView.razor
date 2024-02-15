@@ -127,7 +127,7 @@ else
     {
         userId = AuthenticationService.GetUserId() ?? 0;
 
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/defServ/{Id}");
         Servings = JsonConvert.DeserializeObject<int>(resp);
 
@@ -146,7 +146,7 @@ else
     }
     private async Task ChangeEditFlag()
     {
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/flag/{Id}");
         if (JsonConvert.DeserializeObject<bool>(resp))
             await RefreshPage();
@@ -166,7 +166,7 @@ else
 
     private async Task UpdateComment(RecipeCommentDto dto)
     {
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var json = JsonConvert.SerializeObject(dto);
         var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         clientlocal.DefaultRequestHeaders.Accept.Add(
@@ -182,7 +182,7 @@ else
     {
         Rating = value;
         /*TODO change how users work*/
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/rating/{Id}/{Rating}/{userId}");
         if (JsonConvert.DeserializeObject<bool>(resp))
             await RefreshPage();
@@ -208,7 +208,7 @@ else
 
     private async Task CopyRecipeForUser()
     {
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/copy/{userId}/{Id}");
         if (JsonConvert.DeserializeObject<bool>(resp))
         {
@@ -227,7 +227,7 @@ else
     private async Task RefreshPage()
     {
         /*TODO change how users work*/
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/{Id}/{Servings}/{MetricPreferred}/{userId}");
         recipe = JsonConvert.DeserializeObject<RecipeViewDto>(resp);
 

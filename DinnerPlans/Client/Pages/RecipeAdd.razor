@@ -197,7 +197,7 @@ else
     private async Task RefreshPage()
     {
         /*TODO change how users work*/
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/new/{MetricPreferred}");
         recipe = JsonConvert.DeserializeObject<RecipeEditDto>(resp);
     }
@@ -208,7 +208,7 @@ else
         var json = JsonConvert.SerializeObject(recipe);
         var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.PostAsync($"api/Main/recipes/edit/1/{MetricPreferred}/{Servings}", stringContent);
         if (resp.IsSuccessStatusCode)
             //TODO show some indication the operation completed successfully

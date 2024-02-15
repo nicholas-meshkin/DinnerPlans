@@ -75,7 +75,7 @@ else
     {
         //todo add error message?
         if (string.IsNullOrEmpty(zip)) return;
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Kroger/locationSearch/{zip}/{radius}");
         locations = (JsonConvert.DeserializeObject<LocationSearchResponseDto>(resp)).data;
     }
@@ -90,7 +90,7 @@ else
         var user = AuthenticationService.GetUser();
         user.PreferredStore = locationId;
 
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var json = JsonConvert.SerializeObject(user);
         var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
         var result = await clientlocal.PostAsync("api/Main/user/updatePreferences", stringContent);

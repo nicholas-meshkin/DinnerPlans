@@ -72,7 +72,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var clientlocal = ClientFactory.CreateClient("LocalApi");
+        var clientlocal = ClientFactory.CreateClient("ServerAPI");
         userId = AuthenticationService.GetUserId() ?? 0;
 
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/suggested/{userId}");

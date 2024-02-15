@@ -49,7 +49,7 @@
                   .Select(c => c.Value)
                   .FirstOrDefault() ?? string.Empty;
 
-            var clientlocal = ClientFactory.CreateClient("LocalApi");
+            var clientlocal = ClientFactory.CreateClient("ServerAPI");
             var resp = await clientlocal.GetStringAsync($"api/Main/user/{aoId}");
             if (string.IsNullOrEmpty(resp))
             {

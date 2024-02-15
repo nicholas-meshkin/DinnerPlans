@@ -20,12 +20,11 @@ builder.Services.AddScoped<IFileReadService, FileReadService>();
 
 //builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.HostEnvironment.BaseAddress) });
 builder.Services.AddHttpClient("ServerAPI",
-      client => client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress))
+      client => client.BaseAddress = new Uri("https://localhost:7087/"))
     .AddHttpMessageHandler<BaseAddressAuthorizationMessageHandler>();
 
 builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>()
   .CreateClient("ServerAPI"));
-builder.Services.AddHttpClient("LocalApi", client => client.BaseAddress = new Uri("https://localhost:7087/"));
 
 //from https://auth0.com/blog/securing-blazor-webassembly-apps/
 builder.Services.AddOidcAuthentication(options =>
