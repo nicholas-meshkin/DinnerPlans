@@ -24,6 +24,8 @@ namespace DinnerPlans.Server.Persistence
         public DbSet<IngredientCategory> IngredientCategory { get; set; }
         public DbSet<IngredientIngredientCategory> IngredientIngredientCategory { get; set; }
         public DbSet<RecipeCopyHistory> RecipeCopyHistory { get; set; }
+        public DbSet<IngredientRecipe> IngredientRecipe { get; set; }
+
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -32,6 +34,7 @@ namespace DinnerPlans.Server.Persistence
             modelBuilder.Entity<UserIngredientProductFavorite>().HasKey(a => new { a.UserId,a.IngredientId});
             modelBuilder.Entity<IngredientIngredientCategory>().HasKey(a => new { a.IngredientId, a.IngredientCategoryId });
             modelBuilder.Entity<RecipeCopyHistory>().HasKey(a => new { a.OriginalRecipeId, a.CopyRecipeId, a.UserId });
+            modelBuilder.Entity<IngredientRecipe>().HasKey(a => new { a.IngredientId, a.RecipeId });
         }
         partial void OnModelCreatingPartial(ModelBuilder modelBuilder);
     }

@@ -10,5 +10,6 @@ namespace DinnerPlans.Server.Persistence.Entities
 
         [ForeignKey("UpdatedById")]
         public User? UpdatedBy { get; set; }
+        public ICollection<IngredientRecipe> IngredientRecipes { get; set; }
     }
 }
