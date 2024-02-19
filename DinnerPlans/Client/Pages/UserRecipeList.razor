@@ -80,9 +80,15 @@ else
         var clientlocal = ClientFactory.CreateClient("ServerAPI");
         userId = AuthenticationService.GetUserId() ?? 0;
 
-        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/{userId}");
-        recipeTitles = JsonConvert.DeserializeObject<RecipeListItemDto[]>(resp);
-        searchString1 = NavigationService.GetSearch();
+        //TODO test and see if this hits twice
+        while (recipeTitles == null || !recipeTitles.Any())
+        {
+            //Console.WriteLine("test");
+            var resp = await clientlocal.GetStringAsync($"api/Main/recipes/{userId}");
+            recipeTitles = JsonConvert.DeserializeObject<RecipeListItemDto[]>(resp);
+            searchString1 = NavigationService.GetSearch();
+        }
+        
 
         isLoading = false;
     }
