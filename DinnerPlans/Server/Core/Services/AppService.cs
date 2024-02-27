@@ -432,7 +432,7 @@ namespace DinnerPlans.Server.Core.Services
             return false;
         }
 
-        public async Task<string> StoreRecipeImage(int userId, IBrowserFile imageFile) 
+        public async Task<string> StoreRecipeImage(int userId, IFormFile imageFile) 
         {
             try 
             {
@@ -443,9 +443,9 @@ namespace DinnerPlans.Server.Core.Services
                 await using (FileStream fs = new(path, FileMode.Create, FileAccess.Write)) 
                 {
                     
-                    await imageFile.OpenReadStream(imageFile.Size).CopyToAsync(fs);
+                    await imageFile.OpenReadStream(imageFile.Length).CopyToAsync(fs);
 
-                    var bytes = new byte[imageFile.Size];
+                    var bytes = new byte[imageFile.Length];
 
                     fs.Position = 0;
 

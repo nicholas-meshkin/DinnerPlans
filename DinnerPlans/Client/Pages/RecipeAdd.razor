@@ -22,7 +22,7 @@ else
     <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 secondaryheader" Elevation="0">
         <MudSwitch Class="inline-block" @bind-Checked:get="@MetricPreferred" @bind-Checked:set="ToggleMetric" Label="Metric" Color="Color.Primary" />
         <MudNumericField Class="servingsinput" @bind-Value="Servings" />
-        <MudFileUpload T="IBrowserFile" Accept=".png, .jpg" FilesChanged="UploadImageFile" MaximumFileCount="1">
+        <MudFileUpload T="IBrowserFile" Accept=".png, .jpg" FilesChanged="SelectImageFile" MaximumFileCount="1">
             <ButtonTemplate>
                 <MudButton HtmlTag="label"
                        Variant="Variant.Filled"
@@ -230,7 +230,7 @@ else
 
         //TODO figure out how to show an error 
     }
-    private async Task UploadImageFile(IBrowserFile file)
+    private async Task SelectImageFile(IBrowserFile file)
     {
         imageFile = file;
         //recipe.ImageFilePath = await FileReadService.UploadImageFile(file);

@@ -311,13 +311,14 @@ namespace DinnerPlans.Server.Controllers
 
         [HttpPost("recipes/edit/{userId}/image")]
         [ProducesResponseType(typeof(string), (int)HttpStatusCode.OK)]
-        public async Task<IActionResult> StoreRecipeImage(int userId, IBrowserFile imageFile)
+        public async Task<IActionResult> StoreRecipeImage(int userId/*, IBrowserFile imageFile*/)
         {
             try
             {
                 //method only stores image and returns location, assn with recipe is in later step
-                if (imageFile.Size > AppConstants.MAX_FILE_SIZE) return new JsonResult(ErrorMessages.FileTooBig);
-                if(imageFile.Size == 0) return new JsonResult(ErrorMessages.FileSizeZero);
+                var imageFile = Request.Form.Files[0];
+                if (imageFile.Length > AppConstants.MAX_FILE_SIZE) return new JsonResult(ErrorMessages.FileTooBig);
+                if(imageFile.Length == 0) return new JsonResult(ErrorMessages.FileSizeZero);
                 return Ok(await _appService.StoreRecipeImage( userId, imageFile));
             }
             catch (Exception ex)

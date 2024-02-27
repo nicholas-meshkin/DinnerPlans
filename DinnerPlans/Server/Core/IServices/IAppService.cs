@@ -68,7 +68,7 @@ namespace DinnerPlans.Server.Core.IServices
         /// <param name="userId"></param>
         /// <param name="imageFile"></param>
         /// <returns></returns>
-        Task<string> StoreRecipeImage(int userId, IBrowserFile imageFile);
+        Task<string> StoreRecipeImage(int userId, IFormFile imageFile);
         /// <summary>
         /// create recipe entity
         /// </summary>
