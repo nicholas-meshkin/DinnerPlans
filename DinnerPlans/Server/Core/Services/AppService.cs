@@ -439,33 +439,16 @@ namespace DinnerPlans.Server.Core.Services
                 string trustedFileName = Guid.NewGuid().ToString();
                 //TODO move this somewhere, also change on deploy
                 var path = Path.Combine(@"C:\Users\nickt\Desktop\recipies\RecipeImages", trustedFileName + ".jpg");
-                //var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-                await using (FileStream fs = new(path, FileMode.Create, FileAccess.Write)) 
-                {
-                    
-                    await imageFile.OpenReadStream(imageFile.Length).CopyToAsync(fs);
 
-                    var bytes = new byte[imageFile.Length];
-
-                    fs.Position = 0;
-
-                    await fs.ReadAsync(bytes);
-                    fs.Flush();
-                    fs.Close();
-                    //fs.Write(bytes, 0, bytes.Length);
-                    //using (BinaryWriter bw = new(File.OpenWrite(path)))
-                    //{
-                    //    string test = "test";
-                    //    bw.Write(test);
-
-                    //    //bw.Write(fileBytes,0,fileBytes.Length);
+                await using var fs = new FileStream(path, FileMode.Create);
+                await imageFile.OpenReadStream().CopyToAsync(fs);
+                var bytes = new byte[imageFile.Length];
+                fs.Position = 0;
+                await fs.ReadAsync(bytes);
+                fs.Flush();
+                fs.Close();
 
 
-                    //}
-                    //fs.Close();
-
-                    //File.Delete(path);
-                }
                 return path;
             }
             catch (Exception ex)
