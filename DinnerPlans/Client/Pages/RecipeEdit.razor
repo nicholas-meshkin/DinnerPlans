@@ -6,6 +6,7 @@
 @using DinnerPlans.Client.Services.IServices
 @using DinnerPlans.Shared.DTOs
 @using Newtonsoft.Json
+@using System.Net.Http.Headers
 @inject IHttpClientFactory ClientFactory
 @inject NavigationManager NavManager
 @inject IAuthenticationService AuthenticationService
@@ -19,6 +20,18 @@
 else
 {
     <h1><textarea style="width: 100%" name="name" type="text" @bind="@recipe.Name" /> </h1>
+    <MudImage hidden="@hideImage" Src="@recipe.ImageFilePath" Width="332" Height="250" Alt="Recipe Image" Elevation="25" Class="rounded-lg ma-4" />
+    <MudFileUpload T="IBrowserFile" Accept=".png, .jpg" FilesChanged="UploadImageFile" MaximumFileCount="1">
+        <ButtonTemplate>
+            <MudButton HtmlTag="label"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                   for="@context">
+                Upload Recipe Image File
+            </MudButton>
+        </ButtonTemplate>
+    </MudFileUpload>
     <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 secondaryheader" Elevation="0">
         <MudLink Class="object-left" OnClick="Previous" Disabled="@(recipe.PreviousId == 0)"
              Href="@($"recipeview/{recipe.PreviousId}")">
@@ -130,6 +143,8 @@ else
     Func<MeasureDropdownDto, string> converter = p => p?.Unit;
 
     private int userId;
+    private bool hideImage = true;
+    private IBrowserFile imageFile;
 
     protected override async Task OnInitializedAsync()
     {
@@ -178,6 +193,12 @@ else
                 IsActive = true
             });
     }
+    private async Task UploadImageFile(IBrowserFile file)
+    {
+        imageFile = file;
+        //recipe.ImageFilePath = await FileReadService.UploadImageFile(file);
+        hideImage = false;
+    }
 
     private async Task<IEnumerable<string>> SearchIngredients(string value)
     {
@@ -196,6 +217,7 @@ else
         var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.GetStringAsync($"api/Main/recipes/editview/{Id}/{Servings}/{MetricPreferred}");
         recipe = JsonConvert.DeserializeObject<RecipeEditDto>(resp);
+        hideImage = string.IsNullOrEmpty(recipe.ImageFilePath);
     }
 
     private async Task Next()
@@ -212,15 +234,79 @@ else
 
     private async Task EditRecipe()
     {
+        var imagePath = "";
+        if (imageFile != null)
+        {
+            imagePath = await UploadImageFile();
+            //todo display error
+            if (string.IsNullOrEmpty(imagePath))
+                return;
+        }
+        recipe.ImageFilePath = imagePath;
+
         var json = JsonConvert.SerializeObject(recipe);
         var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var clientlocal = ClientFactory.CreateClient("ServerAPI");
         var resp = await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/{MetricPreferred}/{Servings}", stringContent);
         if (resp.IsSuccessStatusCode)
-        //TODO show some indication the operation completed successfully
+            //TODO show some indication the operation completed successfully
             NavManager.NavigateTo($"/recipeview/{@recipe.Id}");
-        
+
         //TODO figure out how to show an error
     }
+
+    private async Task<string> UploadImageFile()
+    {
+        long maxFileSize = 1024 * 3 * 1000;
+        var upload = false;
+        using var content = new MultipartFormDataContent();
+
+        try
+        {
+            var fileContent = 
+                new StreamContent(imageFile.OpenReadStream(maxFileSize));
+
+            fileContent.Headers.ContentType = 
+                new MediaTypeHeaderValue(imageFile.ContentType);
+
+            content.Add(
+                content: fileContent
+                //,
+                //name: "\"files\"",
+                //fileName: file.Name
+            );
+
+            upload = true;
+        }
+        catch (Exception ex)
+        {
+            //do something here
+        }
+
+        if (upload)
+        {
+            var clientlocal = ClientFactory.CreateClient("ServerAPI");
+
+            var response =
+                await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/image",
+               content);
+            if (response.IsSuccessStatusCode)
+            {
+                //var path = JsonConvert.DeserializeObject<string>(response);
+                var path = response.Content;
+
+
+                //using var responseStream =
+                //    await response.Content.ReadAsStreamAsync();
+
+                //var newUploadResults = await JsonSerializer
+                //    .DeserializeAsync<IList<UploadResult>>(responseStream, options);
+
+
+            }
+        }
+        return "";
+    }
+
 }

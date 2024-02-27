@@ -5,6 +5,8 @@ using DinnerPlans.Server.Core.IServices;
 using DinnerPlans.Server.Core.ErrorHandling;
 using DinnerPlans.Shared.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Components.Forms;
+using DinnerPlans.Server.Core.Util;
 
 namespace DinnerPlans.Server.Controllers
 {
@@ -299,6 +301,24 @@ namespace DinnerPlans.Server.Controllers
             try
             {
                 return Ok(await _appService.DeleteUserProductFavorite(dto));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ErrorMessages.Error500, ex.Message);
+                return new JsonResult(ErrorMessages.Error500);
+            }
+        }
+
+        [HttpPost("recipes/edit/{userId}/image")]
+        [ProducesResponseType(typeof(string), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> StoreRecipeImage(int userId, IBrowserFile imageFile)
+        {
+            try
+            {
+                //method only stores image and returns location, assn with recipe is in later step
+                if (imageFile.Size > AppConstants.MAX_FILE_SIZE) return new JsonResult(ErrorMessages.FileTooBig);
+                if(imageFile.Size == 0) return new JsonResult(ErrorMessages.FileSizeZero);
+                return Ok(await _appService.StoreRecipeImage( userId, imageFile));
             }
             catch (Exception ex)
             {

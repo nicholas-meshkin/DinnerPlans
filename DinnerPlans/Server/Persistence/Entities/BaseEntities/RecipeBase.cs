@@ -7,5 +7,6 @@
         public bool NeedsEdit { get; set; }
         public int DefaultServings { get; set; }
         public bool IsIngredient { get; set; }
+        public string ImageFilePath { get; set; }
     }
 }

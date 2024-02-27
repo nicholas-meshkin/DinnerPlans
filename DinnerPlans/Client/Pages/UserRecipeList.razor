@@ -19,10 +19,10 @@
 {
     <p><em>Loading...</em></p>
 }
-else if (recipeTitles!=null && !recipeTitles.Any())
+@*else if (recipeTitles!=null && !recipeTitles.Any())
 {
     <p>No recipes found for user. Try adding some from the suggested list!</p>
-}
+}*@
 else
 {
     <MudTable @ref="reclist" Items="@recipeTitles" SortLabel="Sort By" Filter="new Func<RecipeListItemDto,bool>(FilterFunc1)">
@@ -80,14 +80,12 @@ else
         var clientlocal = ClientFactory.CreateClient("ServerAPI");
         userId = AuthenticationService.GetUserId() ?? 0;
 
-        //TODO test and see if this hits twice
-        while (recipeTitles == null || !recipeTitles.Any())
-        {
-            //Console.WriteLine("test");
-            var resp = await clientlocal.GetStringAsync($"api/Main/recipes/{userId}");
-            recipeTitles = JsonConvert.DeserializeObject<RecipeListItemDto[]>(resp);
-            searchString1 = NavigationService.GetSearch();
-        }
+        
+        //Console.WriteLine("test");
+        var resp = await clientlocal.GetStringAsync($"api/Main/recipes/{userId}");
+        recipeTitles = JsonConvert.DeserializeObject<RecipeListItemDto[]>(resp);
+        searchString1 = NavigationService.GetSearch();
+        
         
 
         isLoading = false;

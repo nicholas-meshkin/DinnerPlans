@@ -18,9 +18,21 @@
 else
 {
     <h1><MudTextField Label="Recipe Title" @bind-Value="@recipe.Name" /> </h1>
+    <MudImage hidden="@hideImage" Src="@recipe.ImageFilePath" Width="332" Height="250" Elevation="25" Class="rounded-lg ma-4" />
     <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 secondaryheader" Elevation="0">
         <MudSwitch Class="inline-block" @bind-Checked:get="@MetricPreferred" @bind-Checked:set="ToggleMetric" Label="Metric" Color="Color.Primary" />
         <MudNumericField Class="servingsinput" @bind-Value="Servings" />
+        <MudFileUpload T="IBrowserFile" Accept=".png, .jpg" FilesChanged="UploadImageFile" MaximumFileCount="1">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                       Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.CloudUpload"
+                       for="@context">
+                    Upload Recipe Image File
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
     </MudPaper>
     <MudTable Items="@recipe.Ingredients">
         <ColGroup>
@@ -130,7 +142,7 @@ else
 
 @code {
     private RecipeEditDto? recipe;
-
+    private bool hideImage = true;
 
     [Parameter]
     public int Id { get; set; }
@@ -143,6 +155,7 @@ else
 
     private IBrowserFile ingredientFile;
     private IBrowserFile instructionFile;
+    private IBrowserFile imageFile;
 
     protected override async Task OnInitializedAsync()
     {
@@ -216,6 +229,12 @@ else
 
 
         //TODO figure out how to show an error 
+    }
+    private async Task UploadImageFile(IBrowserFile file)
+    {
+        imageFile = file;
+        //recipe.ImageFilePath = await FileReadService.UploadImageFile(file);
+        hideImage = false;
     }
 
     private async Task UploadIngredientFile(IBrowserFile file)

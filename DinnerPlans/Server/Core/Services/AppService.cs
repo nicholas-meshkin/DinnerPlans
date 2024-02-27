@@ -4,6 +4,7 @@ using DinnerPlans.Shared.DTOs;
 using DinnerPlans.Server.Persistence.Entities;
 using System.Globalization;
 using System.Linq.Expressions;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace DinnerPlans.Server.Core.Services
 {
@@ -375,7 +376,7 @@ namespace DinnerPlans.Server.Core.Services
                 var origRec = await _unitOfWork.ReadRepo.GetEntityWithPredicateAsNoTracking<Recipe>(a => a.Id == recipeId);
 
                 //create recipe entity
-                var newRec = await CreateRecipeEntity(userId, origRec.Name, origRec.DefaultServings);
+                var newRec = await CreateRecipeEntity(userId, origRec.Name, origRec.DefaultServings, origRec.ImageFilePath);
                 if (newRec == null) return false;
 
                 //create history
@@ -431,7 +432,50 @@ namespace DinnerPlans.Server.Core.Services
             return false;
         }
 
-        public async Task<Recipe> CreateRecipeEntity(int userId, string recipeName, int servings)
+        public async Task<string> StoreRecipeImage(int userId, IBrowserFile imageFile) 
+        {
+            try 
+            {
+                string trustedFileName = Guid.NewGuid().ToString();
+                //TODO move this somewhere, also change on deploy
+                var path = Path.Combine(@"C:\Users\nickt\Desktop\recipies\RecipeImages", trustedFileName + ".jpg");
+                //var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+                await using (FileStream fs = new(path, FileMode.Create, FileAccess.Write)) 
+                {
+                    
+                    await imageFile.OpenReadStream(imageFile.Size).CopyToAsync(fs);
+
+                    var bytes = new byte[imageFile.Size];
+
+                    fs.Position = 0;
+
+                    await fs.ReadAsync(bytes);
+                    fs.Flush();
+                    fs.Close();
+                    //fs.Write(bytes, 0, bytes.Length);
+                    //using (BinaryWriter bw = new(File.OpenWrite(path)))
+                    //{
+                    //    string test = "test";
+                    //    bw.Write(test);
+
+                    //    //bw.Write(fileBytes,0,fileBytes.Length);
+
+
+                    //}
+                    //fs.Close();
+
+                    //File.Delete(path);
+                }
+                return path;
+            }
+            catch (Exception ex)
+            {
+                await CreateErrorLog("userId: " + userId, ex, "StoreRecipeImage");
+            }
+            return null;
+        }
+
+        public async Task<Recipe> CreateRecipeEntity(int userId, string recipeName, int servings, string path)
         {
             try
             {
@@ -443,7 +487,8 @@ namespace DinnerPlans.Server.Core.Services
                     UpdatedDate = DateTime.UtcNow,
                     IsActive = true,
                     Name = recipeName.ToUpper(),
-                    DefaultServings = servings
+                    DefaultServings = servings,
+                    ImageFilePath= path
             };
                 if (await Save(recipe, 0)) return recipe;
             }
@@ -680,7 +725,7 @@ namespace DinnerPlans.Server.Core.Services
                 var extantRecipe = await _unitOfWork.ReadRepo.GetEntityWithPredicateAsNoTracking<Recipe>(a => a.Id == dto.Id && a.IsActive);
                 if (extantRecipe == null) 
                 {
-                    extantRecipe = await CreateRecipeEntity(userId, dto.Name, servings);
+                    extantRecipe = await CreateRecipeEntity(userId, dto.Name, servings, dto.ImageFilePath);
                     dto.Id = extantRecipe.Id;
                 }
 

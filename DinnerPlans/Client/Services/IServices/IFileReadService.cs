@@ -17,5 +17,11 @@ namespace DinnerPlans.Client.Services.IServices
         /// <param name="file"></param>
         /// <returns></returns>
         Task<IList<InstructionDto>> GetInstructionsFromUpload(IBrowserFile file);
+        /// <summary>
+        /// upload image file and return path
+        /// </summary>
+        /// <param name="file"></param>
+        /// <returns></returns>
+       // Task<string> UploadImageFile(IBrowserFile file);
     }
 }

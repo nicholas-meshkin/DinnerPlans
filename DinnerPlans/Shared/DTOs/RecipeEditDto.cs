@@ -11,6 +11,7 @@ namespace DinnerPlans.Shared.DTOs
         public IList<string> AvailableIngredients { get; set; } = new List<string>();
         public int NextId { get; set; }
         public int PreviousId { get; set; }
+        public string ImageFilePath { get; set; }
 
         
     }

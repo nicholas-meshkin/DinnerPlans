@@ -10,7 +10,7 @@ namespace DinnerPlans.Client.Services
     {
         public FileReadService() { }
 
-
+       // private readonly long maxFileSize = 1024 * 3*1000;
         public async Task<IList<RecipeIngredientDto>> GetIngredientsFromUpload(IBrowserFile file)
         {
                 var ingStrings = await ExtractIngredientImageFileLines(file);
@@ -33,9 +33,72 @@ namespace DinnerPlans.Client.Services
                 return dtos;
         }
 
+        //public async Task<string> UploadImageFile(IBrowserFile file) 
+        //{
+        //    try 
+        //    {
+        //        string trustedFileName = Guid.NewGuid().ToString();
+               
+        //        if (file.Size > 0 && file.Size < maxFileSize)
+        //        {
+        //            var fileBytes = await UploadMedia(file);
+        //            //TODO move this somewhere, also change on deploy
+        //            var path = Path.Combine(@"C:\Users\nickt\Desktop\recipies\RecipeImages", trustedFileName + ".jpg");
+        //            path = path.Replace('/', '\\');
+
+        //            using (BinaryWriter bw = new(File.OpenWrite(path)))
+        //            {
+        //                string test = "test";
+        //                bw.Write(test);
+
+        //                //bw.Write(fileBytes,0,fileBytes.Length);
+
+
+        //            }
+
+        //            //string[] filePaths = Directory.GetFiles(@"C:\Users\nickt\Desktop\recipies\RecipeImagesPreImport\", "*.pdf",
+        //            //                                SearchOption.TopDirectoryOnly);
+
+        //            // var testp = Path.GetFullPath(@"C:\Users\nickt\Desktop\recipies\RecipeImagesPreImport\PorkSlaw.jpg");
+        //            // testp = testp.Replace('/', '\\');
+        //            // testp = testp.TrimStart('\\');
+                    
+
+
+        //            var testp = @"Users\nickt\PorkSlaw.jpg";
+        //            var f = File.ReadAllBytes(testp);
+                    
+        //            //await using (FileStream fs = new(path, FileMode.Create, FileAccess.Write)) 
+        //            //{
+        //            //    File.Create(path);
+        //            //    fs.Write(fileBytes, 0, fileBytes.Length);
+        //            //    fs.Close();
+        //            //    //file.OpenReadStream(maxFileSize).CopyToAsync(fs);
+        //            //}
+
+
+
+
+        //            return path;
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Console.WriteLine(ex.Message);
+        //        //Logger.LogError("File: {Filename} Error: {Error}",
+        //        //    file.Name, ex.Message);
+        //    }
+        //    return "Error uploading file";
+
+        //}
+      
+
         //adapted from https://stackoverflow.com/questions/70790385/ibrowserfile-fromimagefileasync-incomplete-image
         private static async Task<byte[]> UploadMedia(IBrowserFile file)
         {
+            //TODO set max file size
+            //virus scanner?
+            //change file name
             var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
 
             await using var fs = new FileStream(path, FileMode.Create);

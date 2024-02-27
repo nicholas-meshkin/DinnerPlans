@@ -1,5 +1,6 @@
 ﻿using DinnerPlans.Server.Persistence.Entities;
 using DinnerPlans.Shared.DTOs;
+using Microsoft.AspNetCore.Components.Forms;
 
 namespace DinnerPlans.Server.Core.IServices
 {
@@ -62,13 +63,20 @@ namespace DinnerPlans.Server.Core.IServices
         /// <returns></returns>
         Task<bool> IsRecipeNameValid(string recipeName, int userId);
         /// <summary>
+        /// save image file and return path
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="imageFile"></param>
+        /// <returns></returns>
+        Task<string> StoreRecipeImage(int userId, IBrowserFile imageFile);
+        /// <summary>
         /// create recipe entity
         /// </summary>
         /// <param name="userId"></param>
         /// <param name="recipeName"></param>
         /// <param name="servings"></param>
         /// <returns></returns>
-        Task<Recipe> CreateRecipeEntity(int userId, string recipeName, int servings);
+        Task<Recipe> CreateRecipeEntity(int userId, string recipeName, int servings, string path);
         /// <summary>
         /// get default servings for recipe on initial page load
         /// </summary>
