@@ -7,6 +7,7 @@
         public bool NeedsEdit { get; set; }
         public int Rating { get; set; }
         public int DefaultServings { get; set; }
+        public string ImageFilePath { get; set; }
 
         public List<string> Ingredients { get; set; } = new List<string>();
 

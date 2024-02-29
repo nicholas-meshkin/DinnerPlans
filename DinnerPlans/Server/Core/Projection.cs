@@ -41,6 +41,7 @@ namespace DinnerPlans.Server.Core
                 return e => new RecipeEditDto
                 {
                     Id= e.Id,
+                    ImageFilePath= e.ImageFilePath,
                     Name= e.Name
                 };
             }
@@ -92,7 +93,8 @@ namespace DinnerPlans.Server.Core
                     Id = e.Id,
                     Name = e.Name,
                     NeedsEdit = e.NeedsEdit,
-                    DefaultServings= e.DefaultServings
+                    ImageFilePath = e.ImageFilePath,
+                    DefaultServings = e.DefaultServings
                 };
             }
         }
@@ -105,7 +107,8 @@ namespace DinnerPlans.Server.Core
                     Name = e.Name,
                     UpdatedDate = e.UpdatedDate,
                     NeedsEdit = e.NeedsEdit,
-                    CreatedById= e.CreatedById
+                    ImageFilePath = e.ImageFilePath,
+                    CreatedById = e.CreatedById
                 };
             }
         }

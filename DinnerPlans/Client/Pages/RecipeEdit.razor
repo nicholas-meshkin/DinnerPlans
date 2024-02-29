@@ -294,11 +294,11 @@ else
             if (response.IsSuccessStatusCode)
             {
                 //var path = JsonConvert.DeserializeObject<string>(response);
-                var path = response.Content;
+                return response.Content.ReadAsStringAsync().Result;
 
 
                 //using var responseStream =
-                //    await response.Content.ReadAsStreamAsync();
+                   // await response.Content.ReadAsStreamAsync();
 
                 //var newUploadResults = await JsonSerializer
                 //    .DeserializeAsync<IList<UploadResult>>(responseStream, options);

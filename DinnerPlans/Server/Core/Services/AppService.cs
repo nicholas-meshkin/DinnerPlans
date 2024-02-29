@@ -438,7 +438,7 @@ namespace DinnerPlans.Server.Core.Services
             {
                 string trustedFileName = Guid.NewGuid().ToString();
                 //TODO move this somewhere, also change on deploy
-                var path = Path.Combine(@"C:\Users\nickt\Desktop\recipies\RecipeImages", trustedFileName + ".jpg");
+                var path = Path.Combine(@"C:\Users\nickt\source\repos\DinnerPlans\DinnerPlans\Client\wwwroot\Images", trustedFileName + ".jpg");
 
                 await using var fs = new FileStream(path, FileMode.Create);
                 await imageFile.OpenReadStream().CopyToAsync(fs);
@@ -895,6 +895,7 @@ namespace DinnerPlans.Server.Core.Services
                 recipe.Name= dto.Name.ToUpper();
                 recipe.UpdatedDate = DateTime.UtcNow;
                 recipe.UpdatedById = userId;
+                recipe.ImageFilePath= dto.ImageFilePath;
 
                 return await Save(recipe, recipe.Id);
             }
