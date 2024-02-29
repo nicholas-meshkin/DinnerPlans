@@ -449,7 +449,7 @@ namespace DinnerPlans.Server.Core.Services
                 fs.Close();
 
 
-                return path;
+                return Path.Combine("Images", trustedFileName + ".jpg");
             }
             catch (Exception ex)
             {

@@ -35,6 +35,8 @@ else
         </MudLink>
     </MudPaper>
     <h1 class="viewheader">@recipe.Name</h1>
+    <MudImage hidden="@hideImage" Src="@recipe.ImageFilePath" Width="664" Height="500" Alt="Recipe Image" Elevation="25" Class="rounded-lg ma-4" />
+
     <MudButton Disabled=canEdit @onclick="()=>CopyRecipeForUser()">Add to My Recipes</MudButton>
     <p hidden="@(!recipe.NeedsEdit)" style="background-color:tomato;" >&emsp;RECIPE NEEDS EDITING</p>
     <MudPaper Class="d-flex justify-space-around align-center flex-grow-1 gap-4 secondaryheader1" Elevation="0">
@@ -122,6 +124,7 @@ else
     private int userId;
 
     private bool canEdit = false;
+    private bool hideImage = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -242,5 +245,6 @@ else
         NeedsEdit = recipe.NeedsEdit;
         EditButtonText = recipe.NeedsEdit ? "Unflag Recipe for Edit" : "Flag Recipe for Edit";
         Rating = recipe.Rating ?? 0;
+        hideImage = string.IsNullOrEmpty(recipe.ImageFilePath);
     }
 }
