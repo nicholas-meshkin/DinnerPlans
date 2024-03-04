@@ -38,6 +38,7 @@ bld/
 [Ll]ogs/
 wwwroot/Images/*
 wwwroot/Images/
+tessdata/
 *.jpg
 # Visual Studio 2015/2017 cache/options directory
 .vs/
