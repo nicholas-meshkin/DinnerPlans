@@ -70,6 +70,20 @@ namespace DinnerPlans.Server.Core.IServices
         /// <returns></returns>
         Task<string> StoreRecipeImage(int userId, IFormFile imageFile);
         /// <summary>
+        /// get ingredients from uploaded file
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="imageFile"></param>
+        /// <returns></returns>
+        Task<IList<RecipeIngredientDto>> GetIngredientsFromUpload(int userId, IFormFile imageFile);
+        /// <summary>
+        ///  get instructions from uploaded file
+        /// </summary>
+        /// <param name="userId"></param>
+        /// <param name="imageFile"></param>
+        /// <returns></returns>
+        Task<IList<InstructionDto>> GetInstructionsFromUpload(int userId, IFormFile imageFile);
+        /// <summary>
         /// create recipe entity
         /// </summary>
         /// <param name="userId"></param>

@@ -196,7 +196,6 @@ else
     private async Task SelectImageFile(IBrowserFile file)
     {
         imageFile = file;
-        //recipe.ImageFilePath = await FileReadService.UploadImageFile(file);
         hideImage = false;
     }
 
@@ -287,23 +286,12 @@ else
         if (upload)
         {
             var clientlocal = ClientFactory.CreateClient("ServerAPI");
-
             var response =
                 await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/image",
                content);
             if (response.IsSuccessStatusCode)
             {
-                //var path = JsonConvert.DeserializeObject<string>(response);
                 return response.Content.ReadAsStringAsync().Result;
-
-
-                //using var responseStream =
-                   // await response.Content.ReadAsStreamAsync();
-
-                //var newUploadResults = await JsonSerializer
-                //    .DeserializeAsync<IList<UploadResult>>(responseStream, options);
-
-
             }
         }
         return "";

@@ -118,11 +118,10 @@ namespace DinnerPlans.Client.Services
             return bytes;
         }
 
-
+        
         private async Task<IList<string>?> ExtractIngredientImageFileLines(IBrowserFile file)
         {
-
-            //var path = @"C:\Users\nickt\Desktop\recipies\wingsauceingredients.jpg";
+            var engin = new TesseractEngine(@"C:\Users\nickt\source\repos\DinnerPlans\DinnerPlans\Client\tessdata", "eng", EngineMode.Default);
             using (var engine = new TesseractEngine(@"C:\Users\nickt\Desktop\tessdata\tessdata", "eng", EngineMode.Default))
             {
                 if (file.Size > 0)

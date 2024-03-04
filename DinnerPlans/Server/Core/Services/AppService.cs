@@ -5,6 +5,8 @@ using DinnerPlans.Server.Persistence.Entities;
 using System.Globalization;
 using System.Linq.Expressions;
 using Microsoft.AspNetCore.Components.Forms;
+using Tesseract;
+using DinnerPlans.Shared.Util;
 
 namespace DinnerPlans.Server.Core.Services
 {
@@ -432,9 +434,245 @@ namespace DinnerPlans.Server.Core.Services
             return false;
         }
 
-        public async Task<string> StoreRecipeImage(int userId, IFormFile imageFile) 
+
+        #region FileReadMoveLater
+
+
+        private async Task<IList<RecipeIngredientDto>?> ProcessIngredientList(List<string> ingredients)
         {
-            try 
+            try
+            {
+                var list = new List<RecipeIngredientDto>();
+
+                foreach (var item in ingredients)
+                {
+                    if (string.IsNullOrEmpty(item) || item.Equals("Ingredients")) continue;
+                    var amountUnitString = Utils.ParseUnit(item);
+                    double? amount = 0;
+                    var ingredient = "";
+                    if (!amountUnitString.Equals("UNIT"))
+                    {
+                        var amountStartIndex = item.ToUpper().IndexOf(amountUnitString);
+                        if (amountStartIndex != -1)
+                        {
+                            amount = Utils.ParseAmount(item.Substring(0, amountStartIndex));
+                            ingredient = item.Substring(amountStartIndex + amountUnitString.Length);
+                        }
+                        else ingredient = item;
+                    }
+                    else
+                    {
+                        amount = Utils.ParseAmount(item);
+                        ingredient = item.Substring(item.LastIndexOfAny(item.Where(c => Char.IsDigit(c)).ToArray()) + 1);
+                    }
+
+                    if (ingredient.StartsWith(" ")) ingredient = ingredient.TrimStart(' ');
+                    ingredient = ingredient.TrimEnd();
+
+                    var listItemDto = new RecipeIngredientDto
+                    {
+                        Item = ingredient,
+                        AmountDto = new RecipeAmountDto { Unit = Utils.GetStandardizedUnit(amountUnitString), Amount = (double)amount }
+                    };
+                    list.Add(listItemDto);
+                }
+                return list;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+        }
+
+        private async Task<List<InstructionDto>> ProcessRecipeText(List<string> inst)
+        {
+            try
+            {
+                //remove blank lines
+                for (int i = 0; i < inst.Count; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(inst[i]))
+                    {
+                        inst.RemoveAt(i);
+                        i--;
+                    }
+                }
+
+                var dtos = new List<InstructionDto>();
+
+                var indexes = new List<int>();
+
+                //attempt to see if list is numbered
+                if (inst.Any(a => char.IsDigit(a[0])))
+                {
+                    foreach (var line in inst)
+                    {
+                        if (char.IsDigit(line[0])) indexes.Add(inst.IndexOf(line));
+                    }
+
+                    var groupedInst = new List<string>();
+
+                    foreach (var index in indexes)
+                    {
+                        var currInst = inst[index];
+                        var i = index + 1;
+                        while (!indexes.Contains(i) && i < inst.Count())
+                        {
+                            currInst += inst[i];
+                            i++;
+                        }
+                        groupedInst.Add(currInst);
+                    }
+
+                    foreach (var ginst in groupedInst)
+                    {
+                        dtos.Add(new InstructionDto { Instruction = ginst, Order = groupedInst.IndexOf(ginst) });
+                    }
+                }
+                else
+                {
+                    foreach (var line in inst)
+                    {
+                        dtos.Add(new InstructionDto { Instruction = line, Order = inst.IndexOf(line) });
+                    }
+                }
+
+                return dtos;
+
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
+
+        }
+
+        public async Task<IList<RecipeIngredientDto>> GetIngredientsFromUpload(int userId, IFormFile file)
+        {
+            try
+            {
+                var ingStrings = await ExtractIngredientImageFileLines(file);
+                if (ingStrings == null || !ingStrings.Any()) return new List<RecipeIngredientDto>();
+
+                var dtos = await ProcessIngredientList(ingStrings.ToList());
+                if (dtos == null || !dtos.Any()) return new List<RecipeIngredientDto>();
+                return dtos;
+            }
+            catch (Exception ex)
+            {
+                await CreateErrorLog("userId: " + userId, ex, "GetIngredientsFromUpload");
+            }
+            return new List<RecipeIngredientDto>();
+        }
+        public async Task<IList<InstructionDto>> GetInstructionsFromUpload(int userId, IFormFile file)
+        {
+            try
+            {
+                var insStrings = await ExtractInstructionImageFileText(file);
+                if (insStrings == null || !insStrings.Any()) return new List<InstructionDto>();
+                var dtos = await ProcessRecipeText(insStrings.ToList());
+                if (dtos == null || !dtos.Any()) return new List<InstructionDto>();
+
+                return dtos;
+            }
+            catch (Exception ex)
+            {
+                await CreateErrorLog("userId: " + userId, ex, "GetInstructionsFromUpload");
+            }
+            return new List<InstructionDto>();
+        }
+        private async Task<IList<string>?> ExtractIngredientImageFileLines(IFormFile file)
+        {
+            try
+            {
+                using (var engine = new TesseractEngine(@"C:\Users\nickt\Desktop\tessdata\tessdata", "eng", EngineMode.Default))
+                {
+                    if (file.Length > 0)
+                    {
+                        var fileBytes = await UploadMedia(file);
+                        using (var img = Pix.LoadFromMemory(fileBytes))
+                        {
+                            using (var page = engine.Process(img))
+                            {
+                                var text = page.GetText();
+                                var ingredients = text.ToString().ToUpper().Split('\n').ToList();
+                                return ingredients;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await CreateErrorLog("none ", ex, "ExtractIngredientImageFileLines");
+            }
+            return new List<string>();
+        }
+        private async Task<IList<string>?> ExtractInstructionImageFileText(IFormFile file)
+        {
+            try
+            {
+                using (var engine = new TesseractEngine(@"C:\Users\nickt\Desktop\tessdata\tessdata", "eng", EngineMode.Default))
+                {
+                    if (file.Length > 0)
+                    {
+                        var fileBytes = await UploadMedia(file);
+                        using (var img = Pix.LoadFromMemory(fileBytes))
+                        {
+                            using (var page = engine.Process(img))
+                            {
+                                var instructions = new List<string>();
+                                var text = page.GetText();
+                                if (text.Contains("\n\n")) instructions = text.ToString().ToUpper().Split("\n\n").ToList();
+                                else instructions.Add(text.ToString().ToUpper());
+
+                                return instructions;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                await CreateErrorLog("none ", ex, "ExtractInstructionImageFileText");
+            }
+            return new List<string>();
+        }
+        private async Task<byte[]> UploadMedia(IFormFile file)
+        {
+            try
+            {
+                //TODO set max file size
+                //virus scanner?
+                //change file name
+                var path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+                await using var fs = new FileStream(path, FileMode.Create);
+
+                await file.OpenReadStream().CopyToAsync(fs);
+
+                var bytes = new byte[file.Length];
+
+                fs.Position = 0;
+
+                await fs.ReadAsync(bytes);
+
+                fs.Close();
+
+                File.Delete(path);
+
+                return bytes;
+            }
+            catch (Exception ex)
+            {
+                await CreateErrorLog("none ", ex, "UploadMedia");
+            }
+            return new byte[0];
+        }
+
+        public async Task<string> StoreRecipeImage(int userId, IFormFile imageFile)
+        {
+            try
             {
                 string trustedFileName = Guid.NewGuid().ToString();
                 //TODO move this somewhere, also change on deploy
@@ -457,6 +695,10 @@ namespace DinnerPlans.Server.Core.Services
             }
             return null;
         }
+        #endregion
+
+
+
 
         public async Task<Recipe> CreateRecipeEntity(int userId, string recipeName, int servings, string path)
         {

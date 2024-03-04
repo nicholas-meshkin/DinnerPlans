@@ -319,7 +319,47 @@ namespace DinnerPlans.Server.Controllers
                 var imageFile = Request.Form.Files[0];
                 if (imageFile.Length > AppConstants.MAX_FILE_SIZE) return new JsonResult(ErrorMessages.FileTooBig);
                 if(imageFile.Length == 0) return new JsonResult(ErrorMessages.FileSizeZero);
+
                 return Ok(await _appService.StoreRecipeImage( userId, imageFile));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ErrorMessages.Error500, ex.Message);
+                return new JsonResult(ErrorMessages.Error500);
+            }
+        }
+        [HttpPost("recipes/edit/{userId}/processIngredientFile")]
+        [ProducesResponseType(typeof(IList<RecipeIngredientDto>), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> ProcessIngredientFile(int userId)
+        {
+            try
+            {
+                //method only stores image and returns location, assn with recipe is in later step
+                var imageFile = Request.Form.Files[0];
+                if (imageFile.Length > AppConstants.MAX_FILE_SIZE) return new JsonResult(ErrorMessages.FileTooBig);
+                if (imageFile.Length == 0) return new JsonResult(ErrorMessages.FileSizeZero);
+
+                return Ok(await _appService.GetIngredientsFromUpload(userId, imageFile));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogCritical(ErrorMessages.Error500, ex.Message);
+                return new JsonResult(ErrorMessages.Error500);
+            }
+        }
+
+        [HttpPost("recipes/edit/{userId}/processInstructionFile")]
+        [ProducesResponseType(typeof(IList<InstructionDto>), (int)HttpStatusCode.OK)]
+        public async Task<IActionResult> ProcessInstructionFile(int userId)
+        {
+            try
+            {
+                //method only stores image and returns location, assn with recipe is in later step
+                var imageFile = Request.Form.Files[0];
+                if (imageFile.Length > AppConstants.MAX_FILE_SIZE) return new JsonResult(ErrorMessages.FileTooBig);
+                if (imageFile.Length == 0) return new JsonResult(ErrorMessages.FileSizeZero);
+
+                return Ok(await _appService.GetInstructionsFromUpload(userId, imageFile));
             }
             catch (Exception ex)
             {

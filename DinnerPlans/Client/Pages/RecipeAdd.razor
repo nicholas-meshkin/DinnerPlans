@@ -6,8 +6,10 @@
 @using DinnerPlans.Client.Services.IServices
 @using DinnerPlans.Shared.DTOs
 @using Newtonsoft.Json
+@using System.Net.Http.Headers
 @inject IHttpClientFactory ClientFactory
 @inject IFileReadService FileReadService
+@inject IAuthenticationService AuthenticationService
 @inject NavigationManager NavManager
 
 
@@ -143,6 +145,7 @@ else
 @code {
     private RecipeEditDto? recipe;
     private bool hideImage = true;
+    private int userId;
 
     [Parameter]
     public int Id { get; set; }
@@ -159,6 +162,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        userId = AuthenticationService.GetUserId() ?? 0;
+
         await RefreshPage();
     }
 
@@ -218,11 +223,22 @@ else
 
     private async Task EditRecipe()
     {
+        var imagePath = "";
+        if (imageFile != null)
+        {
+            imagePath = await UploadImageFile();
+            //todo display error
+            if (string.IsNullOrEmpty(imagePath))
+                return;
+        }
+        recipe.ImageFilePath = imagePath;
+
+
         var json = JsonConvert.SerializeObject(recipe);
         var stringContent = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
 
         var clientlocal = ClientFactory.CreateClient("ServerAPI");
-        var resp = await clientlocal.PostAsync($"api/Main/recipes/edit/1/{MetricPreferred}/{Servings}", stringContent);
+        var resp = await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/{MetricPreferred}/{Servings}", stringContent);
         if (resp.IsSuccessStatusCode)
             //TODO show some indication the operation completed successfully
             NavManager.NavigateTo("/recipelist");
@@ -233,21 +249,146 @@ else
     private async Task SelectImageFile(IBrowserFile file)
     {
         imageFile = file;
-        //recipe.ImageFilePath = await FileReadService.UploadImageFile(file);
         hideImage = false;
     }
 
     private async Task UploadIngredientFile(IBrowserFile file)
     {
         ingredientFile = file;
-        var ingredients = await FileReadService.GetIngredientsFromUpload(ingredientFile);
+        var ingredients = await ProcessIngredientFile(ingredientFile);
         recipe.Ingredients = (ingredients.Select(a => new RecipeIngredientEditDto { Ingredient = a.Item, IsActive = true, Amount = a.AmountDto.Amount, Measure = recipe.Measures.FirstOrDefault(b => b.Unit.Equals(a.AmountDto.Unit)) })).ToList();
     }
     private async Task UploadInstructionFile(IBrowserFile file)
     {
         instructionFile = file;
-        var instructions = await FileReadService.GetInstructionsFromUpload(instructionFile);
+        var instructions = await ProcessInstructionFile(instructionFile);
         recipe.Instructions = (instructions.Select(a => new RecipeInstructionEditDto { Instruction = a.Instruction, IsActive = true })).ToList();
+    }
+
+    private async Task<IList<RecipeIngredientDto>> ProcessIngredientFile(IBrowserFile file)
+    {
+        long maxFileSize = 1024 * 3 * 1000;
+        var upload = false;
+        using var content = new MultipartFormDataContent();
+
+        try
+        {
+            var fileContent =
+                new StreamContent(file.OpenReadStream(maxFileSize));
+
+            fileContent.Headers.ContentType =
+                new MediaTypeHeaderValue(file.ContentType);
+
+            content.Add(
+                content: fileContent
+                ,
+                name: "\"files\"",
+                fileName: "test"
+            );
+
+            upload = true;
+        }
+        catch (Exception ex)
+        {
+            //do something here
+        }
+
+        if (upload)
+        {
+            var clientlocal = ClientFactory.CreateClient("ServerAPI");
+            var response =
+                await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/processIngredientFile",
+               content);
+            if (response.IsSuccessStatusCode)
+            {
+                return response.Content.ReadFromJsonAsync<IList<RecipeIngredientDto>>().Result;
+            }
+        }
+        return new List<RecipeIngredientDto>();
+    }
+
+    private async Task<IList<InstructionDto>> ProcessInstructionFile(IBrowserFile file)
+    {
+        long maxFileSize = 1024 * 3 * 1000;
+        var upload = false;
+        using var content = new MultipartFormDataContent();
+
+        try
+        {
+            var fileContent =
+                new StreamContent(file.OpenReadStream(maxFileSize));
+
+            fileContent.Headers.ContentType =
+                new MediaTypeHeaderValue(file.ContentType);
+
+            content.Add(
+                content: fileContent
+                ,
+                name: "\"files\"",
+                fileName: "test"
+            );
+
+            upload = true;
+        }
+        catch (Exception ex)
+        {
+            //do something here
+        }
+
+        if (upload)
+        {
+            var clientlocal = ClientFactory.CreateClient("ServerAPI");
+            var response =
+                await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/processInstructionFile",
+               content);
+            if (response.IsSuccessStatusCode)
+            {
+                return response.Content.ReadFromJsonAsync<IList<InstructionDto>>().Result;
+            }
+        }
+        return new List<InstructionDto>();
+    }
+
+    private async Task<string> UploadImageFile()
+    {
+        long maxFileSize = 1024 * 3 * 1000;
+        var upload = false;
+        using var content = new MultipartFormDataContent();
+
+        try
+        {
+            var fileContent =
+                new StreamContent(imageFile.OpenReadStream(maxFileSize));
+
+            fileContent.Headers.ContentType =
+                new MediaTypeHeaderValue(imageFile.ContentType);
+
+            content.Add(
+                content: fileContent
+                ,
+                name: "\"files\"",
+                fileName: "test"
+            );
+
+            upload = true;
+        }
+        catch (Exception ex)
+        {
+            //do something here
+        }
+
+        if (upload)
+        {
+            var clientlocal = ClientFactory.CreateClient("ServerAPI");
+            var response =
+                await clientlocal.PostAsync($"api/Main/recipes/edit/{userId}/image",
+               content);
+            if (response.IsSuccessStatusCode)
+            {
+                return response.Content.ReadAsStringAsync().Result;
+            }
+        }
+        return "";
     }
 
 }
